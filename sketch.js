@@ -191,6 +191,13 @@ let smellsLikeOranges = false; // Player state from orange tiles
 let isSliding = false; // Player is sliding on purple tiles
 let slideDirection = { r: 0, c: 0 }; // Direction of slide
 
+// Multi-level puzzle system
+let currentPuzzleLevel = 1; // 1, 2, or 3
+let puzzleLevelGoals = []; // Goals for each level
+
+// Lives system
+let catLives = 9;
+
 // =============================================================================
 // AUDIO
 // =============================================================================
@@ -1052,47 +1059,103 @@ function initXOPuzzle() {
 
 function initColorTilePuzzle() {
   // Color tile puzzle layout for The Mind Wanderer (Undertale-inspired)
-  // P = Pink (safe, no effect)
-  // R = Red (wall - impassable)
-  // Y = Yellow (bounces back)
-  // B = Blue (water - dangerous if smell like oranges or next to yellow)
-  // O = Orange (makes you smell like oranges)
-  // U = Purple (makes you slide)
-  // G = Green (triggers mini-challenge)
-  // S = Soul position
-  const layout = [
-    "RRRRRRRRRRRRR",
-    "RPYBOYUBBBYGR",
-    "RYYPPUPGPPPBR",
-    "RPOBYPPUPGPPR",
-    "RYPUPPPUPUPYR",
-    "RYPPPUPOPBBPR",
-    "RBUUPPBUBUPYR",
-    "RYBPUPPPBUPPR",
-    "RRRRRRRRRRRPS"
-  ];
+  // P = Floor base (safe, no effect)
+  // R = Wall blocks (impassable)
+  // Y = Yellow electric (bounces back)
+  // B = Blue water (dangerous if smell like grapes or next to yellow)
+  // O = Grape tile (makes you smell like grapes)
+  // U = Ice (makes you slide)
+  // G = Goal position for level progression
+  
+  // Three increasingly difficult levels - each teaches a mechanic
+  const layouts = {
+    1: {
+      // Level 1: Basic navigation - scattered yellow barriers
+      // Teaches: avoid yellow (electric bounce back)
+      grid: [
+        "RRRRRRRRRRRRR",
+        "RPPYPPYPPPYGR",
+        "RPPPYPPYPYPPR",
+        "RYYPPPPYPPYPR",
+        "RPPPYYPPPPPPR",
+        "RPYPPYPYYPYPR",
+        "RPPPPPPYPPYPR",
+        "RPYYPPPPPPPPR",
+        "RRRRRRRRRRRRR"
+      ],
+      start: { r: 1, c: 1 },
+      goal: { r: 1, c: 11 }
+    },
+    2: {
+      // Level 2: Ice slides with hazards - control momentum around dangers
+      // Teaches: ice makes you slide, must avoid yellow barriers, water near yellow is deadly
+      grid: [
+        "RRRRRRRRRRRRR",
+        "RPUUPPPUUPYGR",
+        "RPYBPUUPBPUPR",
+        "RPUUPBPUYPUPR",
+        "RBPYUPUPBPUPR",
+        "RPUUPBPYUPUPR",
+        "RPYBPUUPBPYPR",
+        "RPUUPPPPUUPPR",
+        "RRRRRRRRRRRRR"
+      ],
+      start: { r: 1, c: 1 },
+      goal: { r: 1, c: 11 }
+    },
+    3: {
+      // Level 3: Grapes + water danger - strategic planning
+      // Safe path: avoid grapes, navigate water carefully (water is safe if not near yellow)
+      grid: [
+        "RRRRRRRRRRRRR",
+        "RPPBPYOBPYBSR",
+        "RPYBPPOYPBPPR",
+        "RPBPYPBPOPYBR",
+        "RPPOYBPPYBPPR",
+        "RPYBPOBPYPBPR",
+        "RPBPYPPOYBPPR",
+        "RPPOBPYBPPPPR",
+        "RRRRRRRRRRRRR"
+      ],
+      start: { r: 1, c: 1 },
+      goal: { r: 1, c: 11 }
+    }
+  };
+  
+  const currentLayout = layouts[currentPuzzleLevel];
+  const layout = currentLayout.grid;
 
   puzzleGrid = [];
   for (let r = 0; r < COLOR_PUZZLE_ROWS; r++) {
     let row = [];
     for (let c = 0; c < COLOR_PUZZLE_COLS; c++) {
       const ch = layout[r][c] || "R";
-      // S is just a pink tile where we'll draw the soul
-      row.push({ type: ch === "S" ? "P" : ch });
+      // G and S are floor tiles where we'll draw the goal/soul
+      row.push({ type: (ch === "G" || ch === "S") ? "P" : ch });
     }
     puzzleGrid.push(row);
   }
 
-  puzzlePlayer = { r: 3, c: 1 }; // Start position
-  playerPrevPos = { r: 3, c: 1 };
-  puzzleMessage = "Navigate the color maze! Reach the soul!";
+  puzzlePlayer = currentLayout.start;
+  playerPrevPos = currentLayout.start;
+  
+  if (currentPuzzleLevel === 3) {
+    puzzleMessage = "Level 3: Final challenge! Reach the soul!";
+    wandererSoulPosition = currentLayout.goal;
+    wandererSoulCollected = false;
+    // Don't set puzzleLevelGoals for level 3, use wandererSoulPosition instead
+  } else {
+    puzzleMessage = `Level ${currentPuzzleLevel}: Reach the goal!`;
+    puzzleLevelGoals[currentPuzzleLevel] = currentLayout.goal;
+    wandererSoulPosition = { r: -1, c: -1 }; // Reset soul position for non-final levels
+  }
+  
   puzzleComplete = false;
   essenceCollected = false;
-  wandererSoulCollected = false;
-  wandererSoulPosition = { r: 8, c: 11 };
   smellsLikeOranges = false;
   isSliding = false;
   slideDirection = { r: 0, c: 0 };
+  // Lives persist across attempts in the same game session
   
   // Calculate centering offsets for color puzzle
   const puzzleWidth = COLOR_PUZZLE_COLS * TILE_SIZE;
@@ -1177,79 +1240,85 @@ function drawColorTilePuzzle() {
       const x = c * TILE_SIZE;
       const y = r * TILE_SIZE;
       
-      // Pastel color scheme - Undertale inspired
+      // Custom dark color palette
       noStroke();
       if (cell.type === "R") {
-        // Red - wall (pastel red)
-        fill(255, 160, 160);
+        // Wall / blocks - dark royal violet
+        fill(90, 70, 160);
         rect(x, y, TILE_SIZE, TILE_SIZE);
         // Add texture
-        stroke(230, 130, 130);
+        stroke(60, 15, 70); // Frame color for borders
         strokeWeight(2);
         line(x, y + TILE_SIZE/3, x + TILE_SIZE, y + TILE_SIZE/3);
         line(x, y + 2*TILE_SIZE/3, x + TILE_SIZE, y + 2*TILE_SIZE/3);
       }
       else if (cell.type === "Y") {
-        // Yellow - bounce (pastel yellow)
-        fill(255, 245, 170);
+        // Electric/bounce tiles - warm yellow
+        fill(255, 200, 50);
         rect(x, y, TILE_SIZE, TILE_SIZE);
-        // Add warning pattern
-        stroke(240, 220, 130);
+        // Add electric pattern with darker warm yellow
+        stroke(220, 160, 30);
         strokeWeight(2);
         noFill();
         rect(x + 5, y + 5, TILE_SIZE - 10, TILE_SIZE - 10);
       }
       else if (cell.type === "B") {
-        // Blue - water (pastel blue)
-        fill(180, 220, 255);
+        // Blue tiles - rich midnight blue
+        fill(40, 90, 180);
         rect(x, y, TILE_SIZE, TILE_SIZE);
         // Add water ripple effect
         noStroke();
-        fill(200, 230, 255, 150);
+        fill(60, 120, 200, 150);
         ellipse(x + TILE_SIZE/2, y + TILE_SIZE/2, TILE_SIZE * 0.6);
       }
       else if (cell.type === "O") {
-        // Orange - smell (pastel orange)
-        fill(255, 210, 160);
+        // Grapes tile - deep magenta (same as bounce for warmth)
+        fill(160, 60, 90);
         rect(x, y, TILE_SIZE, TILE_SIZE);
-        // Add orange scent effect
+        // Add grape scent effect
         noStroke();
-        fill(255, 230, 180, 150);
+        fill(180, 80, 110, 150);
         ellipse(x + TILE_SIZE/2, y + TILE_SIZE/3, TILE_SIZE * 0.4);
       }
       else if (cell.type === "U") {
-        // Purple - slide (pastel purple)
-        fill(220, 190, 255);
+        // Purple tiles - ice color (light blue-white)
+        fill(180, 220, 255);
         rect(x, y, TILE_SIZE, TILE_SIZE);
-        // Add slide arrows
-        stroke(190, 160, 230);
-        strokeWeight(2);
-        noFill();
-        // Arrow pattern
-        line(x + 15, y + TILE_SIZE/2, x + TILE_SIZE - 15, y + TILE_SIZE/2);
-        line(x + TILE_SIZE - 20, y + TILE_SIZE/2 - 5, x + TILE_SIZE - 15, y + TILE_SIZE/2);
-        line(x + TILE_SIZE - 20, y + TILE_SIZE/2 + 5, x + TILE_SIZE - 15, y + TILE_SIZE/2);
-      }
-      else if (cell.type === "G") {
-        // Green - challenge (pastel green)
-        fill(190, 255, 190);
-        rect(x, y, TILE_SIZE, TILE_SIZE);
-        // Add exclamation mark effect
-        fill(130, 220, 130);
+        // Add subtle ice shimmer (no arrows)
         noStroke();
-        rect(x + TILE_SIZE/2 - 3, y + TILE_SIZE/3, 6, 20);
-        rect(x + TILE_SIZE/2 - 3, y + TILE_SIZE/2 + 15, 6, 6);
+        fill(200, 235, 255, 120);
+        ellipse(x + TILE_SIZE/3, y + TILE_SIZE/3, TILE_SIZE * 0.3);
+        ellipse(x + 2*TILE_SIZE/3, y + 2*TILE_SIZE/3, TILE_SIZE * 0.25);
       }
       else {
-        // Pink - safe (pastel pink)
-        fill(255, 220, 240);
+        // Floor (base) - deep indigo-charcoal
+        fill(22, 18, 40);
         rect(x, y, TILE_SIZE, TILE_SIZE);
       }
     }
   }
   
-  // Draw Wanderer's Soul (always visible once you reach the end area)
-  if (!wandererSoulCollected) {
+  // Draw goal or soul depending on level
+  if (currentPuzzleLevel < 3) {
+    // Draw level goal
+    const goal = puzzleLevelGoals[currentPuzzleLevel];
+    if (goal) {
+      const goalX = goal.c * TILE_SIZE + TILE_SIZE / 2;
+      const goalY = goal.r * TILE_SIZE + TILE_SIZE / 2;
+      
+      // Glowing goal effect (green)
+      push();
+      noStroke();
+      fill(100, 255, 100, 100);
+      ellipse(goalX, goalY, TILE_SIZE * 1.2);
+      fill(100, 255, 100, 150);
+      ellipse(goalX, goalY, TILE_SIZE * 0.8);
+      fill(150, 255, 150);
+      ellipse(goalX, goalY, TILE_SIZE * 0.5);
+      pop();
+    }
+  } else if (!wandererSoulCollected) {
+    // Draw Wanderer's Soul (level 3 only)
     const soulX = wandererSoulPosition.c * TILE_SIZE + TILE_SIZE / 2;
     const soulY = wandererSoulPosition.r * TILE_SIZE + TILE_SIZE / 2;
     
@@ -1298,12 +1367,19 @@ function drawColorTilePuzzle() {
   textSize(14);
   text(puzzleMessage, width / 2, height - 40);
   
-  // Show orange smell status
+  // Show grape smell status
   if (smellsLikeOranges) {
-    fill(255, 210, 160);
+    fill(160, 60, 90);
     textSize(10);
-    text("* Smells like oranges! *", width / 2, height - 60);
+    text("* Smells like grapes! *", width / 2, height - 60);
   }
+  
+  // Show cat lives and level in bottom left
+  fill(255);
+  textAlign(LEFT, CENTER);
+  textSize(14);
+  text("Lives: " + catLives, 20, height - 30);
+  text("Level: " + currentPuzzleLevel + "/3", 20, height - 50);
   
   // Return to exploring after collecting soul
   if (wandererSoulCollected && !essenceCollected) {
@@ -1474,12 +1550,13 @@ function handleColorTileInput() {
     if (newR >= 0 && newR < COLOR_PUZZLE_ROWS && newC >= 0 && newC < COLOR_PUZZLE_COLS) {
       const target = puzzleGrid[newR][newC];
       
-      // Stop sliding if hit wall or non-purple tile
-      if (target.type === "R" || target.type !== "U") {
+      // Stop sliding if hit wall, yellow, or non-ice tile
+      if (target.type === "R" || target.type === "Y" || target.type !== "U") {
         const prevDir = slideDirection;
         isSliding = false;
         slideDirection = { r: 0, c: 0 };
-        if (target.type !== "R") {
+        // Only move if not hitting wall or yellow
+        if (target.type !== "R" && target.type !== "Y") {
           puzzlePlayer.r = newR;
           puzzlePlayer.c = newC;
           handleColorTileEffect(target, prevDir.r, prevDir.c);
@@ -1487,7 +1564,7 @@ function handleColorTileInput() {
         return;
       }
       
-      // Continue sliding on purple tile
+      // Continue sliding on ice tile
       puzzlePlayer.r = newR;
       puzzlePlayer.c = newC;
       puzzleMessage = "Sliding...";
@@ -1518,6 +1595,12 @@ function handleColorTileInput() {
     puzzleMessage = "Can't pass through walls!";
     return;
   }
+  
+  // Yellow tile = electric bounce (prevent movement)
+  if (target.type === "Y") {
+    puzzleMessage = "Bounced back!";
+    return;
+  }
 
   // Move player
   playerPrevPos.r = puzzlePlayer.r;
@@ -1531,7 +1614,8 @@ function handleColorTileInput() {
 function handleColorTileEffect(tile, dr, dc) {
   puzzleMessage = "";
 
-  // Yellow = bounce back
+  // Yellow tiles are handled before movement, so this shouldn't trigger
+  // But keeping as safety check
   if (tile.type === "Y") {
     puzzleMessage = "Bounced back!";
     puzzlePlayer.r = playerPrevPos.r;
@@ -1539,28 +1623,30 @@ function handleColorTileEffect(tile, dr, dc) {
     return;
   }
 
-  // Blue = water (dangerous if smell like oranges OR adjacent to yellow)
+  // Blue = water (dangerous if smell like grapes OR adjacent to yellow)
   if (tile.type === "B") {
     if (smellsLikeOranges) {
-      puzzleMessage = "The water reacts to the orange smell! Sent back!";
+      puzzleMessage = "The water reacts to the grape smell! Lost a life!";
       puzzlePlayer.r = playerPrevPos.r;
       puzzlePlayer.c = playerPrevPos.c;
       smellsLikeOranges = false; // Lose the smell
+      catLives = max(0, catLives - 1); // Lose a life
       return;
     } else if (isAdjacentToYellow(puzzlePlayer.r, puzzlePlayer.c)) {
-      puzzleMessage = "Water near yellow tiles is dangerous!";
+      puzzleMessage = "Water near magenta tiles is dangerous! Lost a life!";
       puzzlePlayer.r = playerPrevPos.r;
       puzzlePlayer.c = playerPrevPos.c;
+      catLives = max(0, catLives - 1); // Lose a life
       return;
     } else {
       puzzleMessage = "Splashing through water...";
     }
   }
 
-  // Orange = makes you smell like oranges
+  // Orange tile = makes you smell like grapes
   if (tile.type === "O") {
-    smellsLikeOranges = true;
-    puzzleMessage = "You smell like oranges now!";
+    smellsLikeOranges = true; // Variable name stays same for code consistency
+    puzzleMessage = "You smell like grapes now!";
   }
 
   // Purple = makes you slide
@@ -1570,23 +1656,30 @@ function handleColorTileEffect(tile, dr, dc) {
     puzzleMessage = "Sliding on ice!";
   }
 
-  // Green = trigger mini-challenge (for now just a message)
-  if (tile.type === "G") {
-    puzzleMessage = "A wild challenge appears! (Coming soon...)";
-    // Could trigger a quick reflex test or mini-puzzle here
-  }
-
   // Pink = safe
   if (tile.type === "P") {
     puzzleMessage = "Safe tile.";
     
-    // Check if player reached the soul position
-    if (!wandererSoulCollected && 
-        puzzlePlayer.r === wandererSoulPosition.r && 
-        puzzlePlayer.c === wandererSoulPosition.c) {
-      wandererSoulCollected = true;
-      puzzleComplete = true;
-      puzzleMessage = "Collected the Wanderer's Soul!";
+    // Check level progression
+    if (currentPuzzleLevel < 3) {
+      // Check if reached level goal
+      const goal = puzzleLevelGoals[currentPuzzleLevel];
+      if (goal && puzzlePlayer.r === goal.r && puzzlePlayer.c === goal.c) {
+        currentPuzzleLevel++;
+        puzzleMessage = `Level ${currentPuzzleLevel - 1} complete! Moving to level ${currentPuzzleLevel}...`;
+        setTimeout(() => {
+          initColorTilePuzzle(); // Load next level
+        }, 1000);
+      }
+    } else {
+      // Level 3 - check if reached the soul position
+      if (!wandererSoulCollected && 
+          puzzlePlayer.r === wandererSoulPosition.r && 
+          puzzlePlayer.c === wandererSoulPosition.c) {
+        wandererSoulCollected = true;
+        puzzleComplete = true;
+        puzzleMessage = "Collected the Wanderer's Soul!";
+      }
     }
   }
 }
@@ -1944,6 +2037,9 @@ function setupButtons() {
     smellsLikeOranges = false;
     isSliding = false;
     slideDirection = { r: 0, c: 0 };
+    catLives = 9; // Reset lives on restart
+    currentPuzzleLevel = 1; // Reset to level 1
+    puzzleLevelGoals = [];
     initWorld();
   });
 }
