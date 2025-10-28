@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Madeline's Dreamscape</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=block" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1a0d2e 0%, #2d1b3d 100%);
+      font-family: 'Press Start 2P', 'Monaco', 'Courier New', monospace;
+      color: #ffffff;
+    }
+    
+    #game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 20px;
+    }
+    
+    h1 {
+      font-size: 24px;
+      margin: 0;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      letter-spacing: 2px;
+      line-height: 1.5;
+    }
+    
+    #canvas-container {
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    #controls {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 600px;
+      text-align: center;
+    }
+    
+    .control-section {
+      margin: 15px 0;
+    }
+    
+    .control-section h3 {
+      margin: 10px 0;
+      font-size: 12px;
+      color: #d4a5ff;
+      line-height: 1.5;
+    }
+    
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      font-size: 10px;
+      text-align: left;
+      margin-top: 10px;
+      line-height: 1.8;
+    }
+    
+    .control-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px;
+      gap: 10px;
+    }
+    
+    .control-item span:first-child {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    
+    .key {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    
+    button {
+      background: #d4a5ff;
+      color: #1a0d2e;
+      border: none;
+      padding: 10px 20px;
+      font-size: 10px;
+      font-family: 'Press Start 2P', 'Monaco', monospace;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+      transition: all 0.3s;
+    }
+    
+    button:hover {
+      background: #e5c2ff;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <h1>Madeline's Dreamscape</h1>
+    
+    <div id="canvas-container">
+      <!-- p5.js canvas will be inserted here -->
+    </div>
+    
+    <div id="controls">
+      <div class="control-section">
+        <h3>Movement Controls</h3>
+        <div class="controls-grid">
+          <div class="control-item">
+            <span>Move Left</span>
+            <span class="key">A</span>
+          </div>
+          <div class="control-item">
+            <span>Move Right</span>
+            <span class="key">D</span>
+          </div>
+          <div class="control-item">
+            <span>Move Up</span>
+            <span class="key">W</span>
+          </div>
+          <div class="control-item">
+            <span>Move Down</span>
+            <span class="key">S</span>
+          </div>
+          <div class="control-item" style="grid-column: 1 / -1;">
+            <span>Dash</span>
+            <span class="key">Shift+Dir</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="control-section">
+        <h3>Interaction</h3>
+        <div class="controls-grid">
+          <div class="control-item">
+            <span>Interact/Advance</span>
+            <span class="key">E/Enter</span>
+          </div>
+          <div class="control-item">
+            <span>Select Choice</span>
+            <span class="key">↑↓+Enter</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="control-section">
+        <button id="restart-btn">Restart</button>
+        <button id="sound-toggle">Sound: ON</button>
+      </div>
+    </div>
+  </div>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/addons/p5.sound.min.js"></script>
+  <script src="dialogues.js"></script>
+  <script src="sketch.js"></script>
+</body>
+</html>
+
