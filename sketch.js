@@ -187,6 +187,9 @@ let puzzleMessage = "";
 let playerPrevPos = { r: 0, c: 0 }; // For bounce back mechanic
 let wandererSoulPosition = { r: 8, c: 11 }; // Position of Wanderer's Soul (at goal)
 let wandererSoulCollected = false;
+let smellsLikeOranges = false; // Player state from orange tiles
+let isSliding = false; // Player is sliding on purple tiles
+let slideDirection = { r: 0, c: 0 }; // Direction of slide
 
 // =============================================================================
 // AUDIO
@@ -598,13 +601,13 @@ function getCollidableObjects() {
   // Add statues as collidable obstacles
   for (let npc of npcs) {
     if (npc.name === 'Echo' && echoIsStatue) {
-      // Echo statue - very tight collision box at the absolute bottom
-      // This allows walking behind the statue and minimizes gap
+      // Echo statue - larger collision box covering bottom half
+      // Bottom is more restrictive so player can't stand too far behind
       collidables.push({
-        x: npc.x - npc.w / 2 + 15,   // Very inset from sides
-        y: npc.y + 22,                 // Even lower - absolute bottom
-        w: npc.w - 30,                 // Very narrow
-        h: npc.h / 2 - 22              // Extremely short - just the very bottom
+        x: npc.x - npc.w / 2 + 10,   // Slight inset from sides
+        y: npc.y + 5,                  // Starts higher - covers more area
+        w: npc.w - 20,                 // Narrower but not too narrow
+        h: npc.h / 2 + 5               // Larger height - more restrictive bottom
       });
     } else if (npc.name === 'The Mind Wanderer' && wandererIsStatue) {
       // Mind Wanderer statue - normal collision
@@ -1048,18 +1051,24 @@ function initXOPuzzle() {
 }
 
 function initColorTilePuzzle() {
-  // Color tile puzzle layout for The Mind Wanderer
-  // P = Pink (safe), R = Red (wall), Y = Yellow (bounces back)
-  // B = Blue (safe unless adjacent to yellow), S = Soul position
+  // Color tile puzzle layout for The Mind Wanderer (Undertale-inspired)
+  // P = Pink (safe, no effect)
+  // R = Red (wall - impassable)
+  // Y = Yellow (bounces back)
+  // B = Blue (water - dangerous if smell like oranges or next to yellow)
+  // O = Orange (makes you smell like oranges)
+  // U = Purple (makes you slide)
+  // G = Green (triggers mini-challenge)
+  // S = Soul position
   const layout = [
     "RRRRRRRRRRRRR",
-    "RPYBYBYYBBYYR",
-    "RYYPYPYPPPPBR",
-    "RPPBYPPYPYPPR",
-    "RYPYPPPYPYPYR",
-    "RYPPPYPPPBBPR",
-    "RBYYPPBYBYPYR",
-    "RYBPYPPPBYPPR",
+    "RPYBOYUBBBYGR",
+    "RYYPPUPGPPPBR",
+    "RPOBYPPUPGPPR",
+    "RYPUPPPUPUPYR",
+    "RYPPPUPOPBBPR",
+    "RBUUPPBUBUPYR",
+    "RYBPUPPPBUPPR",
     "RRRRRRRRRRRPS"
   ];
 
@@ -1076,11 +1085,14 @@ function initColorTilePuzzle() {
 
   puzzlePlayer = { r: 3, c: 1 }; // Start position
   playerPrevPos = { r: 3, c: 1 };
-  puzzleMessage = "Navigate the color maze! Reach the soul at the end!";
-  puzzleComplete = false; // Will be set to true when reaching near the soul
+  puzzleMessage = "Navigate the color maze! Reach the soul!";
+  puzzleComplete = false;
   essenceCollected = false;
   wandererSoulCollected = false;
   wandererSoulPosition = { r: 8, c: 11 };
+  smellsLikeOranges = false;
+  isSliding = false;
+  slideDirection = { r: 0, c: 0 };
   
   // Calculate centering offsets for color puzzle
   const puzzleWidth = COLOR_PUZZLE_COLS * TILE_SIZE;
@@ -1147,6 +1159,11 @@ function drawXOPuzzle() {
 }
 
 function drawColorTilePuzzle() {
+  // Handle sliding automatically
+  if (isSliding && frameCount % 10 === 0) {
+    handleColorTileInput();
+  }
+  
   // Draw the color tile grid
   push();
   translate(puzzleOffsetX, puzzleOffsetY);
@@ -1160,40 +1177,72 @@ function drawColorTilePuzzle() {
       const x = c * TILE_SIZE;
       const y = r * TILE_SIZE;
       
-      // Improved color scheme - more intuitive
+      // Pastel color scheme - Undertale inspired
       noStroke();
       if (cell.type === "R") {
-        // Red - wall (darker, more solid looking)
-        fill(140, 30, 30);
+        // Red - wall (pastel red)
+        fill(255, 160, 160);
         rect(x, y, TILE_SIZE, TILE_SIZE);
         // Add texture
-        stroke(100, 20, 20);
-        strokeWeight(1);
+        stroke(230, 130, 130);
+        strokeWeight(2);
         line(x, y + TILE_SIZE/3, x + TILE_SIZE, y + TILE_SIZE/3);
         line(x, y + 2*TILE_SIZE/3, x + TILE_SIZE, y + 2*TILE_SIZE/3);
       }
       else if (cell.type === "Y") {
-        // Yellow - bounce (bright warning color)
-        fill(255, 200, 0);
+        // Yellow - bounce (pastel yellow)
+        fill(255, 245, 170);
         rect(x, y, TILE_SIZE, TILE_SIZE);
         // Add warning pattern
-        stroke(230, 170, 0);
+        stroke(240, 220, 130);
         strokeWeight(2);
         noFill();
         rect(x + 5, y + 5, TILE_SIZE - 10, TILE_SIZE - 10);
       }
       else if (cell.type === "B") {
-        // Blue - conditional danger (electric blue)
-        fill(30, 130, 255);
+        // Blue - water (pastel blue)
+        fill(180, 220, 255);
         rect(x, y, TILE_SIZE, TILE_SIZE);
-        // Add glow effect
+        // Add water ripple effect
         noStroke();
-        fill(70, 160, 255, 100);
-        rect(x + 10, y + 10, TILE_SIZE - 20, TILE_SIZE - 20);
+        fill(200, 230, 255, 150);
+        ellipse(x + TILE_SIZE/2, y + TILE_SIZE/2, TILE_SIZE * 0.6);
+      }
+      else if (cell.type === "O") {
+        // Orange - smell (pastel orange)
+        fill(255, 210, 160);
+        rect(x, y, TILE_SIZE, TILE_SIZE);
+        // Add orange scent effect
+        noStroke();
+        fill(255, 230, 180, 150);
+        ellipse(x + TILE_SIZE/2, y + TILE_SIZE/3, TILE_SIZE * 0.4);
+      }
+      else if (cell.type === "U") {
+        // Purple - slide (pastel purple)
+        fill(220, 190, 255);
+        rect(x, y, TILE_SIZE, TILE_SIZE);
+        // Add slide arrows
+        stroke(190, 160, 230);
+        strokeWeight(2);
+        noFill();
+        // Arrow pattern
+        line(x + 15, y + TILE_SIZE/2, x + TILE_SIZE - 15, y + TILE_SIZE/2);
+        line(x + TILE_SIZE - 20, y + TILE_SIZE/2 - 5, x + TILE_SIZE - 15, y + TILE_SIZE/2);
+        line(x + TILE_SIZE - 20, y + TILE_SIZE/2 + 5, x + TILE_SIZE - 15, y + TILE_SIZE/2);
+      }
+      else if (cell.type === "G") {
+        // Green - challenge (pastel green)
+        fill(190, 255, 190);
+        rect(x, y, TILE_SIZE, TILE_SIZE);
+        // Add exclamation mark effect
+        fill(130, 220, 130);
+        noStroke();
+        rect(x + TILE_SIZE/2 - 3, y + TILE_SIZE/3, 6, 20);
+        rect(x + TILE_SIZE/2 - 3, y + TILE_SIZE/2 + 15, 6, 6);
       }
       else {
-        // Pink - safe (soft, inviting color)
-        fill(230, 200, 220);
+        // Pink - safe (pastel pink)
+        fill(255, 220, 240);
         rect(x, y, TILE_SIZE, TILE_SIZE);
       }
     }
@@ -1243,11 +1292,18 @@ function drawColorTilePuzzle() {
   
   pop();
   
-  // Display message
+  // Display message and status
   fill(255);
   textAlign(CENTER, CENTER);
   textSize(14);
   text(puzzleMessage, width / 2, height - 40);
+  
+  // Show orange smell status
+  if (smellsLikeOranges) {
+    fill(255, 210, 160);
+    textSize(10);
+    text("* Smells like oranges! *", width / 2, height - 60);
+  }
   
   // Return to exploring after collecting soul
   if (wandererSoulCollected && !essenceCollected) {
@@ -1408,6 +1464,40 @@ function handleXOPuzzleInput() {
 
 function handleColorTileInput() {
   if (puzzleComplete) return;
+  
+  // If sliding, continue sliding automatically
+  if (isSliding) {
+    const newR = puzzlePlayer.r + slideDirection.r;
+    const newC = puzzlePlayer.c + slideDirection.c;
+    
+    // Check if can continue sliding
+    if (newR >= 0 && newR < COLOR_PUZZLE_ROWS && newC >= 0 && newC < COLOR_PUZZLE_COLS) {
+      const target = puzzleGrid[newR][newC];
+      
+      // Stop sliding if hit wall or non-purple tile
+      if (target.type === "R" || target.type !== "U") {
+        const prevDir = slideDirection;
+        isSliding = false;
+        slideDirection = { r: 0, c: 0 };
+        if (target.type !== "R") {
+          puzzlePlayer.r = newR;
+          puzzlePlayer.c = newC;
+          handleColorTileEffect(target, prevDir.r, prevDir.c);
+        }
+        return;
+      }
+      
+      // Continue sliding on purple tile
+      puzzlePlayer.r = newR;
+      puzzlePlayer.c = newC;
+      puzzleMessage = "Sliding...";
+    } else {
+      // Out of bounds, stop sliding
+      isSliding = false;
+      slideDirection = { r: 0, c: 0 };
+    }
+    return;
+  }
 
   let dr = 0, dc = 0;
   if (key === "w" || key === "W") dr = -1;
@@ -1425,7 +1515,7 @@ function handleColorTileInput() {
 
   // Red tile = wall
   if (target.type === "R") {
-    puzzleMessage = "Can't go through red tiles!";
+    puzzleMessage = "Can't pass through walls!";
     return;
   }
 
@@ -1435,35 +1525,60 @@ function handleColorTileInput() {
   puzzlePlayer.r = newR;
   puzzlePlayer.c = newC;
 
-  handleColorTileEffect(target);
+  handleColorTileEffect(target, dr, dc);
 }
 
-function handleColorTileEffect(tile) {
+function handleColorTileEffect(tile, dr, dc) {
   puzzleMessage = "";
 
   // Yellow = bounce back
   if (tile.type === "Y") {
-    puzzleMessage = "Bounced off yellow tile!";
+    puzzleMessage = "Bounced back!";
     puzzlePlayer.r = playerPrevPos.r;
     puzzlePlayer.c = playerPrevPos.c;
     return;
   }
 
-  // Blue = check adjacency to yellow
+  // Blue = water (dangerous if smell like oranges OR adjacent to yellow)
   if (tile.type === "B") {
-    if (isAdjacentToYellow(puzzlePlayer.r, puzzlePlayer.c)) {
-      puzzleMessage = "Blue tile zapped you!";
+    if (smellsLikeOranges) {
+      puzzleMessage = "The water reacts to the orange smell! Sent back!";
+      puzzlePlayer.r = playerPrevPos.r;
+      puzzlePlayer.c = playerPrevPos.c;
+      smellsLikeOranges = false; // Lose the smell
+      return;
+    } else if (isAdjacentToYellow(puzzlePlayer.r, puzzlePlayer.c)) {
+      puzzleMessage = "Water near yellow tiles is dangerous!";
       puzzlePlayer.r = playerPrevPos.r;
       puzzlePlayer.c = playerPrevPos.c;
       return;
     } else {
-      puzzleMessage = "Safe on blue tile.";
+      puzzleMessage = "Splashing through water...";
     }
+  }
+
+  // Orange = makes you smell like oranges
+  if (tile.type === "O") {
+    smellsLikeOranges = true;
+    puzzleMessage = "You smell like oranges now!";
+  }
+
+  // Purple = makes you slide
+  if (tile.type === "U") {
+    isSliding = true;
+    slideDirection = { r: dr, c: dc };
+    puzzleMessage = "Sliding on ice!";
+  }
+
+  // Green = trigger mini-challenge (for now just a message)
+  if (tile.type === "G") {
+    puzzleMessage = "A wild challenge appears! (Coming soon...)";
+    // Could trigger a quick reflex test or mini-puzzle here
   }
 
   // Pink = safe
   if (tile.type === "P") {
-    puzzleMessage = "Safe on the path.";
+    puzzleMessage = "Safe tile.";
     
     // Check if player reached the soul position
     if (!wandererSoulCollected && 
@@ -1527,7 +1642,8 @@ class Player {
     this.displayH = 50;
     // Hitbox is 60% of width for tighter collisions
     this.hitboxW = this.displayW * 0.6;
-    this.hitboxH = this.displayH;
+    this.hitboxH = this.displayH * 0.6; // Shorter hitbox (60% of height)
+    this.hitboxOffsetY = 8; // Offset hitbox down so top doesn't collide as early
     this.speed = 4;
     // Dash properties
     this.canDash = true;
@@ -1632,10 +1748,11 @@ class Player {
   
   collidesWith(obstacle) {
     // Simple AABB collision detection using hitbox (not display size)
+    // Hitbox is offset down so top of sprite doesn't collide as early
     let playerLeft = this.x - this.hitboxW / 2;
     let playerRight = this.x + this.hitboxW / 2;
-    let playerTop = this.y - this.hitboxH / 2;
-    let playerBottom = this.y + this.hitboxH / 2;
+    let playerTop = this.y - this.hitboxH / 2 + this.hitboxOffsetY;
+    let playerBottom = this.y + this.hitboxH / 2 + this.hitboxOffsetY;
     
     let obsLeft = obstacle.x;
     let obsRight = obstacle.x + obstacle.w;
@@ -1824,6 +1941,9 @@ function setupButtons() {
     collectedSouls = [];
     soulDisplayTimer = 0;
     currentSoulDisplay = 0;
+    smellsLikeOranges = false;
+    isSliding = false;
+    slideDirection = { r: 0, c: 0 };
     initWorld();
   });
 }
