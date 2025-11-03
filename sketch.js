@@ -549,14 +549,17 @@ function keyPressed() {
     
     if (keyCode === ENTER || key === 'e' || key === 'E') {
       advanceDialogue();
+      return false; // Prevent default browser behavior
     }
     
     // Choice selection
     if (currentDialogue && currentDialogue.choices && currentDialogue.choices.length > 0) {
       if (keyCode === UP_ARROW) {
         dialogueBox.selectedChoice = max(0, dialogueBox.selectedChoice - 1);
+        return false; // Prevent page scroll
       } else if (keyCode === DOWN_ARROW) {
         dialogueBox.selectedChoice = min(currentDialogue.choices.length - 1, dialogueBox.selectedChoice + 1);
+        return false; // Prevent page scroll
       }
     }
   }
@@ -648,6 +651,14 @@ function keyPressed() {
   // Puzzle controls
   if (gameState === 'puzzle') {
     handlePuzzleInput();
+  }
+  
+  // Prevent default browser behavior for arrow keys and space
+  // This prevents page scrolling when playing the game
+  if (keyCode === UP_ARROW || keyCode === DOWN_ARROW || 
+      keyCode === LEFT_ARROW || keyCode === RIGHT_ARROW || 
+      keyCode === 32) { // Space bar
+    return false;
   }
 }
 
