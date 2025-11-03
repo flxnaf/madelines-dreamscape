@@ -289,6 +289,7 @@ let mansionMusic;
 let currentMusic = null; // Track currently playing music
 let doorLockSound; // Sound for locked door
 let doorUnlockSound; // Sound for unlocking door
+let hurtSound; // Sound for taking damage
 
 // =============================================================================
 // GAME SETTINGS
@@ -347,6 +348,9 @@ function preload() {
   // Load door sounds
   doorLockSound = loadSound('assets/doorlock.mp3');
   doorUnlockSound = loadSound('assets/doorunlock.mp3');
+  
+  // Load hurt sound
+  hurtSound = loadSound('assets/hurt.mp3');
   
   // Load piano sounds for Rath's puzzle
   // Using simple tones - these would be replaced with actual piano samples
@@ -653,6 +657,21 @@ function mousePressed() {
       
       // Start intro sequence
       gameState = 'intro';
+    }
+  }
+  
+  // Restart button click in ending cutscene
+  if (gameState === 'endingCutscene' && showRestartButton) {
+    let buttonX = width / 2 - 120;
+    let buttonY = height / 2 + 50;
+    let buttonW = 240;
+    let buttonH = 60;
+    
+    // Check if click is on button
+    if (mouseX > buttonX && mouseX < buttonX + buttonW && 
+        mouseY > buttonY && mouseY < buttonY + buttonH) {
+      // Reset game
+      restartGame();
     }
   }
 }
@@ -2791,13 +2810,25 @@ function checkDoor2Interaction() {
 }
 
 function checkDecorationInteraction() {
+  // Don't allow interaction if cooldown is active
+  if (dialogueCooldown > 0) {
+    return false;
+  }
+  
   // Check for E key interaction with special decorations
   for (let dec of decorations) {
     if (dec.type === 'darkCageInteraction') {
-      const decCenterX = dec.x + dec.w / 2;
-      const decCenterY = dec.y + dec.h / 2;
+      // Check if player is touching cage edges (same logic as checkCageCollision)
+      const leftEdge = dec.x;
+      const rightEdge = dec.x + dec.w;
+      const bottomEdge = dec.y + dec.h;
+      const topEdge = dec.y;
       
-      if (dist(player.x, player.y, decCenterX, decCenterY) < 200) {
+      const touchingLeft = player.x > leftEdge - 30 && player.x < leftEdge + 10 && player.y > topEdge && player.y < bottomEdge;
+      const touchingRight = player.x > rightEdge - 10 && player.x < rightEdge + 30 && player.y > topEdge && player.y < bottomEdge;
+      const touchingBottom = player.y > bottomEdge - 10 && player.y < bottomEdge + 30 && player.x > leftEdge && player.x < rightEdge;
+      
+      if (touchingLeft || touchingRight || touchingBottom) {
         // Create a simple dialogue based on soul count
         if (collectedSouls.length >= 5) {
           // Already handled by collision - cage opens
@@ -3335,6 +3366,12 @@ function updateLavaFallAnimation() {
     // Lose life
     globalLives--;
     player.lives = globalLives;
+    
+    // Play hurt sound
+    if (hurtSound) {
+      hurtSound.play();
+    }
+    
     showTemporaryMessage(`Fell in lava! Lives: ${globalLives}`);
     
     // Final position
@@ -3343,9 +3380,9 @@ function updateLavaFallAnimation() {
     
     // Check if game over
     if (globalLives <= 0) {
-      globalLives = maxLives;
-      player.lives = globalLives;
-      showTemporaryMessage('Game Over! Lives restored.');
+      // Game over - return to start screen
+      gameState = 'startScreen';
+      resetGameState();
     }
   }
 }
@@ -3517,15 +3554,18 @@ function drawTowerGame() {
       player.lives--;
       globalLives = player.lives; // Sync with global lives
       towerEnemies.splice(i, 1);
-      showTemporaryMessage(`Hit by ghost! Lives: ${player.lives}`);
+      
+      // Play hurt sound
+      if (hurtSound) {
+        hurtSound.play();
+      }
       
       // Check if game over
       if (player.lives <= 0) {
-        globalLives = maxLives; // Reset global lives on game over
-        previousArea = 'ruinedCityBuilding';
-        currentArea = 'fullWorld';
-        // Ensure gameState is exploring
-        gameState = 'exploring';
+        // Game over - return to start screen
+        gameState = 'startScreen';
+        resetGameState();
+        
         // Reset player physics state
         player.vx = 0;
         player.vy = 0;
@@ -3537,14 +3577,12 @@ function drawTowerGame() {
         player.dashVx = 0;
         player.dashVy = 0;
         player.onGround = false;
+        
         // Clear tower-specific variables
         towerPlatforms = [];
         towerEnemies = [];
         towerCollectibles = [];
         dashTrail = [];
-        initWorld();
-        updateCamera(); // Update camera immediately
-        showTemporaryMessage('Tower failed! Lives depleted.');
       }
     }
   }
@@ -3601,57 +3639,6 @@ function drawTowerGame() {
     }
   }
   
-  // Draw glowing top indicator (levels 1-6)
-  if (towerLevel >= 1 && towerLevel <= 6) {
-    push();
-    // Animated glowing line at top
-    let glowIntensity = 100 + sin(frameCount * 0.1) * 100;
-    stroke(255, 215, 0, glowIntensity);
-    strokeWeight(6);
-    line(100, 20, width - 100, 20);
-    
-    // Brighter center
-    stroke(255, 255, 100, glowIntensity + 50);
-    strokeWeight(3);
-    line(100, 20, width - 100, 20);
-    
-    // Upward arrows
-    noStroke();
-    fill(255, 215, 0, glowIntensity);
-    triangle(width/2 - 10, 30, width/2, 15, width/2 + 10, 30);
-    
-    pop();
-  }
-  
-  // Draw exit line on right side (for levels 2-6) - like the golden line but for going down
-  if (towerLevel >= 2 && towerLevel <= 6) {
-    push();
-    // Animated glowing line at floor level (not canvas bottom)
-    let floorY = height - 40;
-    let lineY = floorY;
-    let glowIntensity = 100 + sin(frameCount * 0.1) * 100;
-    stroke(150, 100, 255, glowIntensity);
-    strokeWeight(6);
-    line(width - 180, lineY, width - 50, lineY);
-    
-    // Brighter center
-    stroke(200, 150, 255, glowIntensity + 50);
-    strokeWeight(3);
-    line(width - 180, lineY, width - 50, lineY);
-    
-    // Downward arrow
-    noStroke();
-    fill(150, 100, 255, glowIntensity);
-    triangle(width - 115 - 10, lineY - 10, width - 115, lineY + 5, width - 115 + 10, lineY - 10);
-    
-    // Text hint
-    fill(200, 150, 255, 150);
-    textAlign(CENTER, BOTTOM);
-    textSize(9);
-    text('DROP', width - 115, lineY - 12);
-    
-    pop();
-  }
   
   // Draw door on level 1
   if (towerLevel === 1) {
@@ -3668,36 +3655,13 @@ function drawTowerGame() {
     textSize(8);
     text('EXIT', 70, doorY + 30);
     pop();
-    
-    // Check if player is near door
-    if (player.x < 110 && player.y > doorY - 20 && player.y < floorY) {
-      fill(255, 255, 255, 200);
-      textAlign(CENTER, BOTTOM);
-      textSize(10);
-      text('Press E to exit', 70, doorY - 5);
-    }
   }
   
   // Draw tower UI
   drawTowerUI();
   
-  // Draw hint at bottom of level 1
-  if (towerLevel === 1) {
-    push();
-    fill(255, 215, 0, 180);
-    textAlign(CENTER, BOTTOM);
-    textSize(12);
-    text('The King of Greed awaits at the top...', width/2, height - 10);
-    pop();
-  }
-  
   // Check level progression
   checkTowerProgression();
-  
-  // Draw temporary message
-  if (temporaryMessageTimer > 0) {
-    drawTemporaryMessage();
-  }
 }
 
 function drawTowerUI() {
@@ -3792,7 +3756,6 @@ function checkDropPortalCollision() {
       // Transition to lower level
       towerLevel--;
       initTowerLevel(towerLevel);
-      showTemporaryMessage(`Level ${towerLevel}`);
       
       // Spawn at middle of screen (center of golden line horizontally, below it)
       player.x = width / 2;
@@ -3814,12 +3777,10 @@ function checkTowerProgression() {
     if (towerLevel < 6) {
       towerLevel++;
       initTowerLevel(towerLevel);
-      showTemporaryMessage(`Level ${towerLevel}`);
     } else {
       // Enter King's chamber
       towerLevel = 7;
       initTowerLevel(7);
-      showTemporaryMessage('King\'s Chamber');
     }
   }
   
@@ -4362,6 +4323,24 @@ function drawDialogue() {
   // Overlay
   fill(0, 0, 0, 150);
   rect(0, 0, width, height);
+  
+  // Draw faded bobbing Dream Guardian for cage dialogues
+  if (currentDialogue && currentDialogue.speaker === 'Dream Guardian' && 
+      (currentDialogue.text.includes('souls') || currentDialogue.text.includes('sanctum'))) {
+    // Bobbing animation
+    let bobOffset = sin(frameCount * 0.05) * 10; // Slow bob up and down
+    
+    // Draw Dream Guardian sprite centered, faded
+    if (dreamGuardianGif) {
+      push();
+      tint(255, 120); // 120/255 = ~47% opacity
+      imageMode(CENTER);
+      let spriteX = width / 2;
+      let spriteY = height / 2 - 100 + bobOffset; // Above dialogue box, bobbing
+      image(dreamGuardianGif, spriteX, spriteY, 100, 100); // 100x100 size
+      pop();
+    }
+  }
   
   // Draw dialogue box
   drawDialogueBox();
@@ -6337,6 +6316,43 @@ function startEndingCutscene() {
   }
 }
 
+function resetGameState() {
+  // Reset all game progress variables
+  globalLives = maxLives;
+  collectedSouls = [];
+  hasEchoSoul = false;
+  hasGreedSoul = false;
+  wandererIsStatue = false;
+  greedKingIsStatue = false;
+  guardianIsStatue = false;
+  hasCabinKey = false;
+  cabinUnlocked = false;
+  door2Unlocked = false;
+  towerLadderActive = false;
+  
+  // Stop all music
+  if (currentMusic) {
+    currentMusic.stop();
+  }
+  currentMusic = null;
+  
+  // Reset ending cutscene variables
+  endingCutscenePhase = 0;
+  endingCutsceneTimer = 0;
+  fadeToPurpleAlpha = 0;
+  showRestartButton = false;
+  cageOpening = false;
+  cageOpeningProgress = 0;
+}
+
+function restartGame() {
+  // Reset game state
+  resetGameState();
+  
+  // Go back to start screen (not intro directly)
+  gameState = 'startScreen';
+}
+
 function drawEndingCutscene() {
   updateEndingCutscene();
   
@@ -6447,19 +6463,23 @@ function drawEndingCutscene() {
       let isHover = mouseX > buttonX && mouseX < buttonX + buttonW && 
                     mouseY > buttonY && mouseY < buttonY + buttonH;
       
-      // Button background
-      push();
-      fill(isHover ? 255 : 200, isHover ? 255 : 215, 0);
-      stroke(255);
+      // Button background - match start button style
+      if (isHover) {
+        fill(255, 255, 100);
+      } else {
+        fill(255, 220, 0);
+      }
+      
+      stroke(255, 200, 0);
       strokeWeight(3);
-      rect(buttonX, buttonY, buttonW, buttonH, 10);
+      rect(buttonX, buttonY, buttonW, buttonH, 5);
       
       // Button text
-      fill(40, 20, 60);
+      fill(0);
+      noStroke();
       textAlign(CENTER, CENTER);
       textSize(20);
       text("RESTART GAME", buttonX + buttonW / 2, buttonY + buttonH / 2);
-      pop();
     }
   }
 }
