@@ -6725,7 +6725,7 @@ function drawEscapeRoom() {
 function updateEscapeRoomPlayer() {
   let p = player;
   
-  // Movement
+  // Movement (horizontal)
   if (!p.isDashing) {
     if (keyIsDown(65) || keyIsDown(37)) { // A or Left
       p.vx = -p.speed;
@@ -6734,9 +6734,17 @@ function updateEscapeRoomPlayer() {
     } else {
       p.vx = 0;
     }
+    
+    // Jump (allow holding W/Space for continuous jump attempts)
+    if ((keyIsDown(87) || keyIsDown(32)) && p.onGround) {
+      p.vy = -p.jumpForce;
+      p.onGround = false;
+    }
+    
     p.vy += p.gravity;
   } else {
-    if (frameCount % 2 === 0) dashTrail.push(new DashAfterimage(p.x, p.y, p.displayW, p.displayH));
+    // Dashing - add trail
+    dashTrail.push(new DashAfterimage(p.x, p.y, p.displayW, p.displayH));
     p.dashDuration--;
     if (p.dashDuration <= 0) {
       p.isDashing = false;
@@ -6745,8 +6753,13 @@ function updateEscapeRoomPlayer() {
     }
   }
   
-  // Dash
-  if (keyIsDown(SHIFT) && p.canDash && !p.isDashing) {
+  // Dash cooldown
+  if (p.dashCooldown > 0) {
+    p.dashCooldown--;
+  }
+  
+  // Dash input
+  if (keyIsDown(SHIFT) && p.canDash && !p.isDashing && p.dashCooldown === 0) {
     let dx = 0;
     if (keyIsDown(65) || keyIsDown(37)) dx = -1;
     if (keyIsDown(68) || keyIsDown(39)) dx = 1;
@@ -6754,6 +6767,7 @@ function updateEscapeRoomPlayer() {
       p.isDashing = true;
       p.dashDuration = 10;
       p.canDash = false;
+      p.dashCooldown = 60; // 1 second cooldown
       p.vx = dx * p.dashSpeed;
       if (wooshSound) wooshSound.play();
     }
@@ -6769,7 +6783,7 @@ function updateEscapeRoomPlayer() {
   if (p.x < minX) { p.x = minX; p.isDashing = false; }
   if (p.x > maxX) { p.x = maxX; p.isDashing = false; }
   
-  // Floor
+  // Floor collision
   const playerBottom = p.y + p.h / 2;
   if (playerBottom >= ESCAPE_FLOOR_Y) {
     p.y = ESCAPE_FLOOR_Y - p.h / 2;
@@ -6781,7 +6795,7 @@ function updateEscapeRoomPlayer() {
     p.onGround = false;
   }
   
-  // Platforms
+  // Platform collision
   for (let r of escapePlatformRects) {
     const top = r.y;
     const left = r.x;
@@ -6804,14 +6818,7 @@ function updateEscapeRoomPlayer() {
 function handleEscapeRoomInput() {
   if (gameState !== 'escapeRoom') return false;
   
-  // Jump
-  if ((key === ' ' || key === 'W' || key === 'w') && player.onGround) {
-    player.vy = -player.jumpForce;
-    player.onGround = false;
-    return true;
-  }
-  
-  // Interact
+  // Interact (F key only)
   if (key === 'F' || key === 'f') {
     handleEscapeInteraction();
     return true;
@@ -6910,6 +6917,7 @@ function drawEscapeInteraction() {
   push();
   fill(0, 180);
   noStroke();
+  rectMode(CENTER);
   rect(width / 2, 40, 250, 36, 8);
   fill(255);
   textAlign(CENTER, CENTER);
@@ -6920,20 +6928,17 @@ function drawEscapeInteraction() {
 
 function drawEscapeUI() {
   push();
-  textAlign(LEFT, TOP);
-  fill(255);
-  textSize(14);
-  const elapsed = (millis() - escapeStartTime) / 1000;
-  text(`Time: ${nf(elapsed, 1, 2)}s`, 10, 10);
   
   if (escapeMessage && millis() - escapeMessageTimer < 2000) {
     textAlign(CENTER, CENTER);
+    fill(255);
     textSize(16);
     text(escapeMessage, width / 2, height - 30);
   }
   
   if (escapeHint) {
     textAlign(CENTER, TOP);
+    fill(255);
     textSize(14);
     text(escapeHint, width / 2, 10);
   }
