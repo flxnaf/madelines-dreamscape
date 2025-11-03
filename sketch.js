@@ -218,6 +218,7 @@ let greedKingIsStatue = false;
 let guardianIsStatue = false; // Dream Guardian becomes statue after giving soul // Track if King of Greed has been turned into a statue
 let cageOpen = false; // Track if the cage borders have opened
 let currentPuzzleNPC = null; // Track which NPC's puzzle is active
+let escapeRoomCompleted = false; // Track if Room 1 escape puzzle has been completed
 
 // Soul collection system
 let collectedSouls = []; // Array to store collected souls ["Echo", "Sorrow", etc.]
@@ -249,6 +250,37 @@ let pianoCorrectSeq = [
 let pianoMessage = "";
 let pianoMessageTimer = 0;
 let pianoSounds = {}; // Will load piano sounds
+
+// Escape Room puzzle variables (Room 1)
+let escapeRoomState = "idle"; // idle, playing, completed
+let escapeHasKey = false;
+let escapeDoorUnlocked = false;
+let escapeHasGem = false;
+let escapeChestOpened = false;
+let escapeHint = "";
+let escapeMessage = "";
+let escapeMessageTimer = 0;
+let escapeCode = "";
+let escapeStartTime = 0;
+let escapeInputBox = null;
+let escapeSubmitButton = null;
+let escapeRoomImg, escapeDoorImg, escapeDrawerImg, escapeChestImg, escapeOpenChestImg;
+let escapeBedImg, escapeCarpetImg, escapePaintingImg, escapeTableImg, escapeCrystalImg, escapeMirrorImg;
+let escapeSfxDrawer, escapeSfxCloth, escapeSfxKey;
+const ESCAPE_INTERACT_RADIUS = 80;
+const ESCAPE_FLOOR_Y = 450;
+const escapeObjects = {
+  drawer:   { name: "Drawer",  x: 50,  y: 310, w: 150, h: 100, hitboxX: 80, hitboxY: 325, hitboxH: 130, hitboxW: 95, interact: true, platform: true },
+  painting: { name: "Painting", x: 100, y: 150, w: 170, h: 120, interact: true, platform: false },
+  chest:    { name: "Chest",   x: 180, y: 300, w: 125, h: 125, hitboxX: 200, hitboxY: 325, hitboxH: 130, hitboxW: 95, interact: true, platform: true },
+  bed:      { name: "Bed",     x: 300, y: 265, w: 200, h: 160, hitboxY: 360, hitboxX: 320, hitboxW: 150, hitboxH: 100, interact: true, platform: true },
+  carpet:   { name: "Carpet",  x: 250, y: 400, w: 180, h: 110, interact: true, platform: false },
+  table:    { name: "Table",   x: 525, y: 280, w: 130, h: 170, hitboxX: 540, hitboxY: 350, hitboxW: 100, hitboxH: 50, interact: true, platform: true },
+  crystalball: { name: "Crystal Ball", x: 550, y: 270, w: 80, h: 80, interact: true, platform: false },
+  mirror:   { name: "Magic Mirror", x: 540, y: 125, w: 110, h: 105, interact: true, platform: false },
+  door:     { name: "Door",    x: 645, y: 209, w: 165, h: 200, interact: true, platform: false },
+};
+let escapePlatformRects = [];
 
 // Tower climbing game variables (King of Greed's tower)
 let towerLevel = 1; // Current floor (1-6)
@@ -351,6 +383,22 @@ function preload() {
   
   // Load hurt sound
   hurtSound = loadSound('assets/hurt.mp3');
+  
+  // Load escape room assets
+  escapeRoomImg = loadImage('escaperoom_puzzle/images/room.png');
+  escapeDoorImg = loadImage('escaperoom_puzzle/images/door.png');
+  escapeDrawerImg = loadImage('escaperoom_puzzle/images/drawer.png');
+  escapeChestImg = loadImage('escaperoom_puzzle/images/chest.png');
+  escapeOpenChestImg = loadImage('escaperoom_puzzle/images/openchest.png');
+  escapeBedImg = loadImage('escaperoom_puzzle/images/bed.png');
+  escapeCarpetImg = loadImage('escaperoom_puzzle/images/carpet.png');
+  escapePaintingImg = loadImage('escaperoom_puzzle/images/painting.png');
+  escapeTableImg = loadImage('escaperoom_puzzle/images/table.png');
+  escapeCrystalImg = loadImage('escaperoom_puzzle/images/crystalball.png');
+  escapeMirrorImg = loadImage('escaperoom_puzzle/images/magicmirror.png');
+  escapeSfxDrawer = loadSound('escaperoom_puzzle/sounds/drawer.mp3');
+  escapeSfxCloth = loadSound('escaperoom_puzzle/sounds/cloth.mp3');
+  escapeSfxKey = loadSound('escaperoom_puzzle/sounds/key.mp3');
   
   // Load piano sounds for Rath's puzzle
   // Using simple tones - these would be replaced with actual piano samples
@@ -469,6 +517,8 @@ function draw() {
     drawPuzzle();
   } else if (gameState === 'pianoPuzzle') {
     drawPianoPuzzle();
+  } else if (gameState === 'escapeRoom') {
+    drawEscapeRoom();
   } else if (gameState === 'endingCutscene') {
     drawEndingCutscene();
   }
@@ -477,6 +527,11 @@ function draw() {
 function keyPressed() {
   // Piano puzzle input
   if (handlePianoInput()) {
+    return false;
+  }
+  
+  // Escape room input
+  if (handleEscapeRoomInput()) {
     return false;
   }
   
@@ -958,7 +1013,14 @@ function initMansion() {
 }
 
 function initRoom1() {
-  // Puzzle room - passage between mansion and dreamscape
+  // Check if escape room puzzle needs to be played
+  if (!escapeRoomCompleted && previousArea === 'mansion') {
+    // Start escape room puzzle
+    startEscapeRoom();
+    return;
+  }
+  
+  // After puzzle completion, room1 is just a passage
   backgroundDecorations = []; // Clear background decorations
   obstacles = [
     // Walls
@@ -989,7 +1051,7 @@ function initRoom1() {
   } else {
     // Default spawn (left side)
     player.x = 120;
-  player.y = 155;
+    player.y = 155;
   }
 }
 
@@ -4324,9 +4386,11 @@ function drawDialogue() {
   fill(0, 0, 0, 150);
   rect(0, 0, width, height);
   
-  // Draw faded bobbing Dream Guardian for cage dialogues
+  // Draw faded bobbing Dream Guardian for cage dialogues only
+  // Only show when it's a simple message (no choices) about the cage
   if (currentDialogue && currentDialogue.speaker === 'Dream Guardian' && 
-      (currentDialogue.text.includes('souls') || currentDialogue.text.includes('sanctum'))) {
+      (!currentDialogue.choices || currentDialogue.choices.length === 0) &&
+      (currentDialogue.text.includes('cage') || currentDialogue.text.includes('sanctum'))) {
     // Bobbing animation
     let bobOffset = sin(frameCount * 0.05) * 10; // Slow bob up and down
     
@@ -6329,6 +6393,7 @@ function resetGameState() {
   cabinUnlocked = false;
   door2Unlocked = false;
   towerLadderActive = false;
+  escapeRoomCompleted = false;
   
   // Stop all music
   if (currentMusic) {
@@ -6343,6 +6408,10 @@ function resetGameState() {
   showRestartButton = false;
   cageOpening = false;
   cageOpeningProgress = 0;
+  
+  // Hide escape room UI elements if they exist
+  if (escapeInputBox) escapeInputBox.hide();
+  if (escapeSubmitButton) escapeSubmitButton.hide();
 }
 
 function restartGame() {
@@ -6504,6 +6573,342 @@ function updateEndingCutscene() {
   } else if (endingCutscenePhase === 3 && endingCutsceneTimer > 180 && !showRestartButton) {
     // After 3 seconds, show restart button
     showRestartButton = true;
+  }
+}
+
+// =============================================================================
+// ESCAPE ROOM PUZZLE
+// =============================================================================
+
+function startEscapeRoom() {
+  gameState = 'escapeRoom';
+  escapeRoomState = "playing";
+  escapeHasKey = false;
+  escapeDoorUnlocked = false;
+  escapeHasGem = false;
+  escapeChestOpened = false;
+  escapeHint = "";
+  escapeMessage = "";
+  escapeMessageTimer = 0;
+  escapeCode = nf(int(random(1000, 9999)), 4);
+  escapeStartTime = millis();
+  
+  // Reset player for escape room
+  player.x = width / 2;
+  player.y = ESCAPE_FLOOR_Y - 75;
+  player.vx = 0;
+  player.vy = 0;
+  player.onGround = false;
+  
+  // Build platform rectangles for escape room
+  escapePlatformRects = [];
+  for (let key in escapeObjects) {
+    const o = escapeObjects[key];
+    if (o.platform) {
+      escapePlatformRects.push({
+        x: (o.hitboxX !== undefined ? o.hitboxX : o.x),
+        y: (o.hitboxY !== undefined ? o.hitboxY : o.y),
+        w: (o.hitboxW !== undefined ? o.hitboxW : o.w),
+        h: (o.hitboxH !== undefined ? o.hitboxH : o.h)
+      });
+    }
+  }
+  
+  // Create input elements if they don't exist
+  if (!escapeInputBox) {
+    escapeInputBox = createInput();
+    escapeInputBox.position(width / 2 + 50, height - 50);
+    escapeInputBox.size(100);
+    escapeInputBox.hide();
+    
+    escapeSubmitButton = createButton("Submit");
+    escapeSubmitButton.position(width / 2 + 160, height - 50);
+    escapeSubmitButton.mousePressed(checkEscapeCode);
+    escapeSubmitButton.hide();
+  }
+}
+
+function drawEscapeRoom() {
+  // Draw room background
+  if (escapeRoomImg) {
+    image(escapeRoomImg, 0, 0, width, height);
+  } else {
+    background(40);
+  }
+  
+  // Draw all objects
+  if (escapePaintingImg) image(escapePaintingImg, escapeObjects.painting.x, escapeObjects.painting.y, escapeObjects.painting.w, escapeObjects.painting.h);
+  if (escapeDrawerImg) image(escapeDrawerImg, escapeObjects.drawer.x, escapeObjects.drawer.y, escapeObjects.drawer.w, escapeObjects.drawer.h);
+  if (!escapeChestOpened && escapeChestImg) {
+    image(escapeChestImg, escapeObjects.chest.x, escapeObjects.chest.y, escapeObjects.chest.w, escapeObjects.chest.h);
+  } else if (escapeOpenChestImg) {
+    image(escapeOpenChestImg, escapeObjects.chest.x, escapeObjects.chest.y, escapeObjects.chest.w, escapeObjects.chest.h);
+  }
+  if (escapeBedImg) image(escapeBedImg, escapeObjects.bed.x, escapeObjects.bed.y, escapeObjects.bed.w, escapeObjects.bed.h);
+  if (escapeCarpetImg) image(escapeCarpetImg, escapeObjects.carpet.x, escapeObjects.carpet.y, escapeObjects.carpet.w, escapeObjects.carpet.h);
+  if (escapeTableImg) image(escapeTableImg, escapeObjects.table.x, escapeObjects.table.y, escapeObjects.table.w, escapeObjects.table.h);
+  if (escapeCrystalImg) image(escapeCrystalImg, escapeObjects.crystalball.x, escapeObjects.crystalball.y, escapeObjects.crystalball.w, escapeObjects.crystalball.h);
+  if (escapeMirrorImg) image(escapeMirrorImg, escapeObjects.mirror.x, escapeObjects.mirror.y, escapeObjects.mirror.w, escapeObjects.mirror.h);
+  if (escapeDoorImg) image(escapeDoorImg, escapeObjects.door.x, escapeObjects.door.y, escapeObjects.door.w, escapeObjects.door.h);
+  
+  // Update and draw player
+  updateEscapeRoomPlayer();
+  player.display();
+  
+  // Draw dash trail
+  for (let i = dashTrail.length - 1; i >= 0; i--) {
+    dashTrail[i].life--;
+    dashTrail[i].display();
+    if (dashTrail[i].life <= 0) {
+      dashTrail.splice(i, 1);
+    }
+  }
+  
+  // Draw interaction prompt
+  drawEscapeInteraction();
+  
+  // Draw UI
+  drawEscapeUI();
+}
+
+function updateEscapeRoomPlayer() {
+  let p = player;
+  
+  // Movement
+  if (!p.isDashing) {
+    if (keyIsDown(65) || keyIsDown(37)) { // A or Left
+      p.vx = -p.speed;
+    } else if (keyIsDown(68) || keyIsDown(39)) { // D or Right
+      p.vx = p.speed;
+    } else {
+      p.vx = 0;
+    }
+    p.vy += p.gravity;
+  } else {
+    if (frameCount % 2 === 0) dashTrail.push(new DashAfterimage(p.x, p.y, p.displayW, p.displayH));
+    p.dashDuration--;
+    if (p.dashDuration <= 0) {
+      p.isDashing = false;
+      p.vx *= 0.5;
+      p.vy *= 0.5;
+    }
+  }
+  
+  // Dash
+  if (keyIsDown(SHIFT) && p.canDash && !p.isDashing) {
+    let dx = 0;
+    if (keyIsDown(65) || keyIsDown(37)) dx = -1;
+    if (keyIsDown(68) || keyIsDown(39)) dx = 1;
+    if (dx !== 0) {
+      p.isDashing = true;
+      p.dashDuration = 10;
+      p.canDash = false;
+      p.vx = dx * p.dashSpeed;
+      if (wooshSound) wooshSound.play();
+    }
+  }
+  
+  // Apply velocity
+  p.x += p.vx;
+  p.y += p.vy;
+  
+  // Bounds
+  const minX = 10 + p.w / 2;
+  const maxX = width - 10 - p.w / 2;
+  if (p.x < minX) { p.x = minX; p.isDashing = false; }
+  if (p.x > maxX) { p.x = maxX; p.isDashing = false; }
+  
+  // Floor
+  const playerBottom = p.y + p.h / 2;
+  if (playerBottom >= ESCAPE_FLOOR_Y) {
+    p.y = ESCAPE_FLOOR_Y - p.h / 2;
+    p.vy = 0;
+    p.onGround = true;
+    p.canDash = true;
+    p.isDashing = false;
+  } else {
+    p.onGround = false;
+  }
+  
+  // Platforms
+  for (let r of escapePlatformRects) {
+    const top = r.y;
+    const left = r.x;
+    const right = r.x + r.w;
+    const prevBottom = (p.y + p.h / 2) - p.vy;
+    const horizontallyOver = (p.x + p.w / 2 > left) && (p.x - p.w / 2 < right);
+    const descending = p.vy >= 0;
+    if (descending && horizontallyOver && prevBottom <= top && playerBottom >= top) {
+      p.y = top - p.h / 2;
+      p.vy = 0;
+      p.onGround = true;
+      p.canDash = true;
+      p.isDashing = false;
+    }
+  }
+  
+  p.vy = constrain(p.vy, -20, 20);
+}
+
+function handleEscapeRoomInput() {
+  if (gameState !== 'escapeRoom') return false;
+  
+  // Jump
+  if ((key === ' ' || key === 'W' || key === 'w') && player.onGround) {
+    player.vy = -player.jumpForce;
+    player.onGround = false;
+    return true;
+  }
+  
+  // Interact
+  if (key === 'F' || key === 'f') {
+    handleEscapeInteraction();
+    return true;
+  }
+  
+  return false;
+}
+
+function handleEscapeInteraction() {
+  let target = getNearestEscapeInteractable();
+  if (!target) return;
+  
+  const name = target.name;
+  
+  if (name === "Drawer") {
+    if (!escapeHasKey) {
+      escapeHasKey = true;
+      escapeMessage = "You found a key!";
+      if (escapeSfxDrawer) escapeSfxDrawer.play();
+    } else {
+      escapeMessage = "The drawer is empty...";
+      if (escapeSfxCloth) escapeSfxCloth.play();
+    }
+  }
+  else if (name === "Painting") {
+    escapeMessage = "Just a painting... nothing special";
+    if (escapeSfxCloth) escapeSfxCloth.play();
+  }
+  else if (name === "Chest") {
+    if (!escapeHasKey) {
+      escapeMessage = "It's locked... maybe there's a key somewhere.";
+    } else if (escapeHasKey && !escapeChestOpened) {
+      escapeHasGem = true;
+      escapeChestOpened = true;
+      escapeMessage = "Unlocked the chest and found a glowing gem!";
+      if (escapeSfxKey) escapeSfxKey.play();
+    } else {
+      escapeMessage = "The chest is empty now...";
+    }
+  }
+  else if (name === "Crystal Ball") {
+    if (!escapeHasKey) escapeHint = "The crystal whispers: 'Check the drawer...'";
+    else if (!escapeHasGem) escapeHint = "The crystal hums: 'Something valuable lies within the chest...'";
+    else if (!escapeDoorUnlocked) escapeHint = "The crystal glows: 'The mirror holds your path to freedom...'";
+    else escapeHint = "The crystal dims, its power spent.";
+    escapeMessage = "The crystal ball shimmers softly.";
+  }
+  else if (name === "Magic Mirror") {
+    if (!escapeHasGem) {
+      escapeMessage = "The mirror's surface ripples faintly, but nothing happens...";
+    } else {
+      escapeMessage = "The mirror reveals glowing runes: " + escapeCode;
+    }
+  }
+  else if (name === "Bed") {
+    escapeMessage = "Nothing useful here...";
+    if (escapeSfxCloth) escapeSfxCloth.play();
+  }
+  else if (name === "Carpet") {
+    escapeMessage = "Just a carpet...";
+    if (escapeSfxCloth) escapeSfxCloth.play();
+  }
+  else if (name === "Door") {
+    if (escapeHasGem && !escapeDoorUnlocked) {
+      escapeInputBox.show();
+      escapeSubmitButton.show();
+      escapeMessage = "Enter the 4-digit code to escape.";
+    } else if (!escapeHasGem) {
+      escapeMessage = "It's locked tight.";
+    }
+  }
+  
+  escapeMessageTimer = millis();
+}
+
+function getNearestEscapeInteractable() {
+  let best = null;
+  let bestDist = Infinity;
+  for (let key in escapeObjects) {
+    const o = escapeObjects[key];
+    if (!o.interact) continue;
+    const cx = o.x + o.w / 2;
+    const cy = o.y + o.h / 2;
+    const d = dist(player.x, player.y, cx, cy);
+    if (d < ESCAPE_INTERACT_RADIUS && d < bestDist) {
+      best = o;
+      bestDist = d;
+    }
+  }
+  return best;
+}
+
+function drawEscapeInteraction() {
+  const target = getNearestEscapeInteractable();
+  if (!target) return;
+  push();
+  fill(0, 180);
+  noStroke();
+  rect(width / 2, 40, 250, 36, 8);
+  fill(255);
+  textAlign(CENTER, CENTER);
+  textSize(14);
+  text("Press F to interact with " + target.name, width / 2, 40);
+  pop();
+}
+
+function drawEscapeUI() {
+  push();
+  textAlign(LEFT, TOP);
+  fill(255);
+  textSize(14);
+  const elapsed = (millis() - escapeStartTime) / 1000;
+  text(`Time: ${nf(elapsed, 1, 2)}s`, 10, 10);
+  
+  if (escapeMessage && millis() - escapeMessageTimer < 2000) {
+    textAlign(CENTER, CENTER);
+    textSize(16);
+    text(escapeMessage, width / 2, height - 30);
+  }
+  
+  if (escapeHint) {
+    textAlign(CENTER, TOP);
+    textSize(14);
+    text(escapeHint, width / 2, 10);
+  }
+  pop();
+}
+
+function checkEscapeCode() {
+  if (escapeInputBox.value() === escapeCode) {
+    escapeDoorUnlocked = true;
+    escapeInputBox.hide();
+    escapeSubmitButton.hide();
+    escapeRoomCompleted = true;
+    escapeMessage = "Door unlocked! You can now access the dreamscape.";
+    escapeMessageTimer = millis();
+    
+    // After 2 seconds, transition back to room1 in normal mode
+    setTimeout(() => {
+      gameState = 'exploring';
+      currentArea = 'room1';
+      previousArea = 'mansion';
+      initRoom1(); // Will now initialize as normal room
+      switchMusic();
+    }, 2000);
+  } else {
+    escapeMessage = "Wrong code!";
+    escapeMessageTimer = millis();
   }
 }
 
