@@ -1256,15 +1256,15 @@ function initFullWorld() {
     // === DARK CAGE (Final boss location, moved to top-right) ===
     // Cage is positioned in the top-right of the map
     // Outer cage structure - large, ominous
-    { x: 4000, y: 200, w: 400, h: 500, style: 'darkCage' },
+    { x: 3200, y: 200, w: 400, h: 500, style: 'darkCage' },
     // Cage bars (vertical)
-    { x: 4050, y: 200, w: 15, h: 500, style: 'cageBars' },
-    { x: 4120, y: 200, w: 15, h: 500, style: 'cageBars' },
-    { x: 4190, y: 200, w: 15, h: 500, style: 'cageBars' },
-    { x: 4260, y: 200, w: 15, h: 500, style: 'cageBars' },
-    { x: 4330, y: 200, w: 15, h: 500, style: 'cageBars' },
+    { x: 3250, y: 200, w: 15, h: 500, style: 'cageBars' },
+    { x: 3320, y: 200, w: 15, h: 500, style: 'cageBars' },
+    { x: 3390, y: 200, w: 15, h: 500, style: 'cageBars' },
+    { x: 3460, y: 200, w: 15, h: 500, style: 'cageBars' },
+    { x: 3530, y: 200, w: 15, h: 500, style: 'cageBars' },
     // Dark energy glow inside cage
-    { x: 4100, y: 350, w: 200, h: 200, style: 'darkEnergy' },
+    { x: 3300, y: 350, w: 200, h: 200, style: 'darkEnergy' },
     
     // === GHOST FOREST (Upper-right area) ===
     // Wooden cabin in the center (collidable)
@@ -1455,7 +1455,7 @@ function initFullWorld() {
   // Decorations (non-collidable but interactable or visual)
   decorations = [
     // Dark cage interaction zone (updated to new top-right position)
-    { x: 3400, y: 200, w: 400, h: 500, 
+    { x: 3200, y: 200, w: 400, h: 500, 
       type: 'darkCageInteraction' },
     // Ghost forest campfire (collidable) - centered in clearing below cabin
     { x: ghostForestX + 340, y: ghostForestY + 680, w: 60, h: 60, style: 'campfire' },
