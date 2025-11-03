@@ -6389,11 +6389,39 @@ function resetGameState() {
   wandererIsStatue = false;
   greedKingIsStatue = false;
   guardianIsStatue = false;
+  echoIsStatue = false;
   hasCabinKey = false;
   cabinUnlocked = false;
   door2Unlocked = false;
   towerLadderActive = false;
   escapeRoomCompleted = false;
+  hasGhostPepper = false; // Remove dash ability
+  guardianIntroComplete = false; // Reset intro
+  guardianShouldWalkBack = false;
+  guardianIntroTimer = 0;
+  essenceCollected = false; // Reset Echo's essence
+  cageOpen = false; // Reset cage state
+  currentPuzzleNPC = null; // Reset puzzle tracking
+  
+  // Reset minigame states
+  pianoInputSeq = []; // Reset piano puzzle
+  towerLevel = 1; // Reset tower to level 1
+  towerCoinsCollected = 0; // Reset coin count
+  towerPlatforms = [];
+  towerEnemies = [];
+  towerCollectibles = [];
+  
+  // Reset player dash state
+  if (player) {
+    player.canDash = false;
+    player.isDashing = false;
+    player.dashCooldown = 0;
+    player.dashDuration = 0;
+  }
+  
+  // Reset area tracking
+  currentArea = 'mansion';
+  previousArea = '';
   
   // Stop all music
   if (currentMusic) {
