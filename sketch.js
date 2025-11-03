@@ -271,13 +271,13 @@ const ESCAPE_INTERACT_RADIUS = 80;
 const ESCAPE_FLOOR_Y = 490; // Floor at bottom of screen
 const escapeObjects = {
   drawer:   { name: "Drawer",  x: 50,  y: 390, w: 150, h: 100, hitboxX: 50, hitboxY: 390, hitboxH: 15, hitboxW: 150, interact: true, platform: true },
-  painting: { name: "Painting", x: 100, y: 150, w: 170, h: 120, interact: true, platform: false },
-  chest:    { name: "Chest",   x: 180, y: 365, w: 125, h: 125, hitboxX: 180, hitboxY: 365, hitboxH: 15, hitboxW: 125, interact: true, platform: true },
-  bed:      { name: "Bed",     x: 300, y: 330, w: 200, h: 160, hitboxY: 330, hitboxX: 300, hitboxW: 200, hitboxH: 15, interact: true, platform: true },
-  carpet:   { name: "Carpet",  x: 250, y: 380, w: 180, h: 110, interact: true, platform: false },
+  painting: { name: "Painting", x: 100, y: 220, w: 170, h: 120, interact: true, platform: false },
+  chest:    { name: "Chest",   x: 180, y: 365, w: 125, h: 125, hitboxX: 180, hitboxY: 375, hitboxH: 15, hitboxW: 125, interact: true, platform: true },
+  bed:      { name: "Bed",     x: 300, y: 330, w: 200, h: 160, hitboxY: 345, hitboxX: 300, hitboxW: 200, hitboxH: 15, interact: true, platform: true },
+  carpet:   { name: "Carpet",  x: 250, y: 415, w: 180, h: 110, interact: true, platform: false },
   table:    { name: "Table",   x: 525, y: 320, w: 130, h: 170, hitboxX: 525, hitboxY: 320, hitboxW: 130, hitboxH: 15, interact: true, platform: true },
-  crystalball: { name: "Crystal Ball", x: 550, y: 270, w: 80, h: 80, interact: true, platform: false },
-  mirror:   { name: "Magic Mirror", x: 540, y: 125, w: 110, h: 105, interact: true, platform: false },
+  crystalball: { name: "Crystal Ball", x: 550, y: 350, w: 80, h: 80, interact: true, platform: false },
+  mirror:   { name: "Magic Mirror", x: 540, y: 200, w: 110, h: 105, interact: true, platform: false },
   door:     { name: "Door",    x: 645, y: 290, w: 165, h: 200, interact: true, platform: false },
 };
 let escapePlatformRects = [];
