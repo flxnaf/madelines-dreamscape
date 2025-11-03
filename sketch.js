@@ -1051,7 +1051,7 @@ function initRoom1() {
   } else {
     // Default spawn (left side)
     player.x = 120;
-    player.y = 155;
+  player.y = 155;
   }
 }
 
@@ -1302,7 +1302,7 @@ function initFullWorld() {
   lavaRespawnPoint = { x: lavaLakeX - 60, y: lavaLakeY + 320 };
   
   // Ghostfire Lake position (bottom-right of map) - define BEFORE using in backgroundDecorations
-  const ghostfireLakeX = 3500;
+  const ghostfireLakeX = 2900;
   const ghostfireLakeY = 2700; // Moved up from 3000
   const ghostfireLakeW = 800;
   const ghostfireLakeH = 400;
@@ -1455,7 +1455,7 @@ function initFullWorld() {
   // Decorations (non-collidable but interactable or visual)
   decorations = [
     // Dark cage interaction zone (updated to new top-right position)
-    { x: 4000, y: 200, w: 400, h: 500, 
+    { x: 3400, y: 200, w: 400, h: 500, 
       type: 'darkCageInteraction' },
     // Ghost forest campfire (collidable) - centered in clearing below cabin
     { x: ghostForestX + 340, y: ghostForestY + 680, w: 60, h: 60, style: 'campfire' },
@@ -3869,7 +3869,7 @@ function updateCamera() {
     cameraY = 0;
   } else if (currentArea === 'fullWorld') {
     // For full world, camera follows player
-    const fullWorldWidth = 4800;
+    const fullWorldWidth = 4200;
     const fullWorldHeight = 3600;
     
     cameraX = player.x - width / 2;
@@ -5570,7 +5570,7 @@ class Player {
     
     // Keep player in world bounds (adjust based on current area)
     if (currentArea === 'fullWorld') {
-      const fullWorldWidth = 4800;
+      const fullWorldWidth = 4200;
       const fullWorldHeight = 3600;
       this.x = constrain(this.x, this.displayW / 2, fullWorldWidth - this.displayW / 2);
       this.y = constrain(this.y, this.displayH / 2, fullWorldHeight - this.displayH / 2);
