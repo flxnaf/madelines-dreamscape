@@ -306,8 +306,7 @@ let slideDirection = { r: 0, c: 0 }; // Direction of slide
 let currentPuzzleLevel = 1; // 1, 2, or 3
 let puzzleLevelGoals = []; // Goals for each level
 
-// Lives system
-let catLives = 9;
+// Lives system (now using globalLives)
 
 // =============================================================================
 // AUDIO
@@ -5105,7 +5104,7 @@ function drawColorTilePuzzle() {
   fill(255);
   textAlign(LEFT, CENTER);
   textSize(14);
-  text("Lives: " + catLives, 20, height - 30);
+  text("Lives: " + globalLives, 20, height - 30);
   text("Level: " + currentPuzzleLevel + "/3", 20, height - 50);
   
   // Return to exploring after collecting soul
@@ -5357,13 +5356,37 @@ function handleColorTileEffect(tile, dr, dc) {
       puzzlePlayer.r = playerPrevPos.r;
       puzzlePlayer.c = playerPrevPos.c;
       smellsLikeOranges = false; // Lose the smell
-      catLives = max(0, catLives - 1); // Lose a life
+      globalLives--; // Lose a life
+      player.lives = globalLives; // Sync with player
+      
+      // Play hurt sound
+      if (hurtSound) {
+        hurtSound.play();
+      }
+      
+      // Check if game over
+      if (globalLives <= 0) {
+        gameState = 'startScreen';
+        resetGameState();
+      }
       return;
     } else if (isAdjacentToYellow(puzzlePlayer.r, puzzlePlayer.c)) {
       puzzleMessage = "Water near magenta tiles is dangerous! Lost a life!";
       puzzlePlayer.r = playerPrevPos.r;
       puzzlePlayer.c = playerPrevPos.c;
-      catLives = max(0, catLives - 1); // Lose a life
+      globalLives--; // Lose a life
+      player.lives = globalLives; // Sync with player
+      
+      // Play hurt sound
+      if (hurtSound) {
+        hurtSound.play();
+      }
+      
+      // Check if game over
+      if (globalLives <= 0) {
+        gameState = 'startScreen';
+        resetGameState();
+      }
       return;
     } else {
       puzzleMessage = "Splashing through water...";
@@ -6173,7 +6196,7 @@ function setupButtons() {
     smellsLikeOranges = false;
     isSliding = false;
     slideDirection = { r: 0, c: 0 };
-    catLives = 9;
+    // Lives now use globalLives (no separate catLives)
     currentPuzzleLevel = 1;
     puzzleLevelGoals = [];
     wandererSoulCollected = false;
