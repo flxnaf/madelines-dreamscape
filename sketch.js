@@ -270,15 +270,15 @@ let escapeSfxDrawer, escapeSfxCloth, escapeSfxKey;
 const ESCAPE_INTERACT_RADIUS = 80;
 const ESCAPE_FLOOR_Y = 490; // Floor at bottom of screen
 const escapeObjects = {
-  drawer:   { name: "Drawer",  x: 50,  y: 310, w: 150, h: 100, hitboxX: 50, hitboxY: 310, hitboxH: 15, hitboxW: 150, interact: true, platform: true },
+  drawer:   { name: "Drawer",  x: 50,  y: 390, w: 150, h: 100, hitboxX: 50, hitboxY: 390, hitboxH: 15, hitboxW: 150, interact: true, platform: true },
   painting: { name: "Painting", x: 100, y: 150, w: 170, h: 120, interact: true, platform: false },
-  chest:    { name: "Chest",   x: 180, y: 300, w: 125, h: 125, hitboxX: 180, hitboxY: 300, hitboxH: 15, hitboxW: 125, interact: true, platform: true },
-  bed:      { name: "Bed",     x: 300, y: 265, w: 200, h: 160, hitboxY: 265, hitboxX: 300, hitboxW: 200, hitboxH: 15, interact: true, platform: true },
-  carpet:   { name: "Carpet",  x: 250, y: 400, w: 180, h: 110, interact: true, platform: false },
-  table:    { name: "Table",   x: 525, y: 280, w: 130, h: 170, hitboxX: 525, hitboxY: 280, hitboxW: 130, hitboxH: 15, interact: true, platform: true },
+  chest:    { name: "Chest",   x: 180, y: 365, w: 125, h: 125, hitboxX: 180, hitboxY: 365, hitboxH: 15, hitboxW: 125, interact: true, platform: true },
+  bed:      { name: "Bed",     x: 300, y: 330, w: 200, h: 160, hitboxY: 330, hitboxX: 300, hitboxW: 200, hitboxH: 15, interact: true, platform: true },
+  carpet:   { name: "Carpet",  x: 250, y: 380, w: 180, h: 110, interact: true, platform: false },
+  table:    { name: "Table",   x: 525, y: 320, w: 130, h: 170, hitboxX: 525, hitboxY: 320, hitboxW: 130, hitboxH: 15, interact: true, platform: true },
   crystalball: { name: "Crystal Ball", x: 550, y: 270, w: 80, h: 80, interact: true, platform: false },
   mirror:   { name: "Magic Mirror", x: 540, y: 125, w: 110, h: 105, interact: true, platform: false },
-  door:     { name: "Door",    x: 645, y: 209, w: 165, h: 200, interact: true, platform: false },
+  door:     { name: "Door",    x: 645, y: 290, w: 165, h: 200, interact: true, platform: false },
 };
 let escapePlatformRects = [];
 
@@ -6758,17 +6758,22 @@ function updateEscapeRoomPlayer() {
     p.dashCooldown--;
   }
   
-  // Dash input
+  // Dash input (8-directional)
   if (keyIsDown(SHIFT) && p.canDash && !p.isDashing && p.dashCooldown === 0) {
     let dx = 0;
-    if (keyIsDown(65) || keyIsDown(37)) dx = -1;
-    if (keyIsDown(68) || keyIsDown(39)) dx = 1;
-    if (dx !== 0) {
+    let dy = 0;
+    if (keyIsDown(65) || keyIsDown(37)) dx = -1; // Left
+    if (keyIsDown(68) || keyIsDown(39)) dx = 1;  // Right
+    if (keyIsDown(87) || keyIsDown(38)) dy = -1; // Up
+    if (keyIsDown(83) || keyIsDown(40)) dy = 1;  // Down
+    
+    if (dx !== 0 || dy !== 0) {
       p.isDashing = true;
       p.dashDuration = 10;
       p.canDash = false;
       p.dashCooldown = 60; // 1 second cooldown
       p.vx = dx * p.dashSpeed;
+      p.vy = dy * p.dashSpeed;
       if (wooshSound) wooshSound.play();
     }
   }
@@ -6929,14 +6934,24 @@ function drawEscapeInteraction() {
   const target = getNearestEscapeInteractable();
   if (!target) return;
   push();
+  
+  // Calculate text width dynamically
+  textSize(14);
+  const message = "Press E to interact with " + target.name;
+  const textW = textWidth(message);
+  const boxW = textW + 40; // Add padding
+  const boxH = 36;
+  
+  // Draw background box
   fill(0, 180);
   noStroke();
   rectMode(CENTER);
-  rect(width / 2, 40, 250, 36, 8);
+  rect(width / 2, 40, boxW, boxH, 8);
+  
+  // Draw text
   fill(255);
   textAlign(CENTER, CENTER);
-  textSize(14);
-  text("Press E to interact with " + target.name, width / 2, 40);
+  text(message, width / 2, 40);
   pop();
 }
 
