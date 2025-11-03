@@ -354,8 +354,8 @@ function preload() {
   // Load King of Greed sprite
   greedKingGif = loadImage('assets/greedking.gif');
   
-  // Load Rath sprite (if available)
-  // rathImg = loadImage('assets/rath.gif'); // Uncomment when rath asset is available
+  // Load Rath sprite
+  rathImg = loadImage('assets/rath.gif');
   
   // Load Sans sprite
   sansImg = loadImage('assets/sans.png');
@@ -4538,6 +4538,7 @@ function handleDialogueChoice(choice) {
     // Check if this response gives the ghost pepper
     if (currentDialogue.givesGhostPepper) {
       hasGhostPepper = true;
+      player.canDash = true; // Enable dash ability
       console.log('=== GHOST PEPPER RECEIVED ===');
       console.log('hasGhostPepper =', hasGhostPepper);
       console.log('Player canDash =', player.canDash);
@@ -6249,19 +6250,11 @@ function drawPianoPuzzle() {
   // Draw fixed gray cave background
   background(80, 80, 80);
   
-  // Find Rath NPC
-  let rath = null;
-  for (let npc of npcs) {
-    if (npc.name === 'Rath') {
-      rath = npc;
-      break;
-    }
-  }
-  
-  // Draw Rath if exists
-  if (rath && rath.img) {
+  // Draw Rath sprite
+  if (rathImg) {
     push();
-    image(rath.img, width / 2 - 40, 100, 80, 80);
+    imageMode(CENTER);
+    image(rathImg, width / 2, 140, 80, 80);
     pop();
   }
   
@@ -6959,10 +6952,41 @@ function drawEscapeUI() {
   push();
   
   if (escapeMessage && millis() - escapeMessageTimer < 2000) {
-    textAlign(CENTER, CENTER);
-    fill(255);
+    // Draw background box
     textSize(16);
-    text(escapeMessage, width / 2, height - 30);
+    const msgTextW = textWidth(escapeMessage);
+    const boxW = min(msgTextW + 40, width - 40); // Cap at canvas width
+    const boxH = 40;
+    
+    fill(0, 180);
+    noStroke();
+    rectMode(CENTER);
+    rect(width / 2, height - 40, boxW, boxH, 8);
+    
+    // Draw text with wrapping
+    fill(255);
+    textAlign(CENTER, CENTER);
+    textSize(16);
+    
+    // Wrap text if too long
+    if (msgTextW > width - 80) {
+      const words = escapeMessage.split(' ');
+      let line = '';
+      let y = height - 50;
+      for (let word of words) {
+        let testLine = line + word + ' ';
+        if (textWidth(testLine) > width - 80) {
+          text(line, width / 2, y);
+          line = word + ' ';
+          y += 20;
+        } else {
+          line = testLine;
+        }
+      }
+      text(line, width / 2, y);
+    } else {
+      text(escapeMessage, width / 2, height - 40);
+    }
   }
   
   if (escapeHint) {
