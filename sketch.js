@@ -268,14 +268,14 @@ let escapeRoomImg, escapeDoorImg, escapeDrawerImg, escapeChestImg, escapeOpenChe
 let escapeBedImg, escapeCarpetImg, escapePaintingImg, escapeTableImg, escapeCrystalImg, escapeMirrorImg;
 let escapeSfxDrawer, escapeSfxCloth, escapeSfxKey;
 const ESCAPE_INTERACT_RADIUS = 80;
-const ESCAPE_FLOOR_Y = 450;
+const ESCAPE_FLOOR_Y = 490; // Floor at bottom of screen
 const escapeObjects = {
-  drawer:   { name: "Drawer",  x: 50,  y: 310, w: 150, h: 100, hitboxX: 80, hitboxY: 325, hitboxH: 130, hitboxW: 95, interact: true, platform: true },
+  drawer:   { name: "Drawer",  x: 50,  y: 310, w: 150, h: 100, hitboxX: 50, hitboxY: 310, hitboxH: 15, hitboxW: 150, interact: true, platform: true },
   painting: { name: "Painting", x: 100, y: 150, w: 170, h: 120, interact: true, platform: false },
-  chest:    { name: "Chest",   x: 180, y: 300, w: 125, h: 125, hitboxX: 200, hitboxY: 325, hitboxH: 130, hitboxW: 95, interact: true, platform: true },
-  bed:      { name: "Bed",     x: 300, y: 265, w: 200, h: 160, hitboxY: 360, hitboxX: 320, hitboxW: 150, hitboxH: 100, interact: true, platform: true },
+  chest:    { name: "Chest",   x: 180, y: 300, w: 125, h: 125, hitboxX: 180, hitboxY: 300, hitboxH: 15, hitboxW: 125, interact: true, platform: true },
+  bed:      { name: "Bed",     x: 300, y: 265, w: 200, h: 160, hitboxY: 265, hitboxX: 300, hitboxW: 200, hitboxH: 15, interact: true, platform: true },
   carpet:   { name: "Carpet",  x: 250, y: 400, w: 180, h: 110, interact: true, platform: false },
-  table:    { name: "Table",   x: 525, y: 280, w: 130, h: 170, hitboxX: 540, hitboxY: 350, hitboxW: 100, hitboxH: 50, interact: true, platform: true },
+  table:    { name: "Table",   x: 525, y: 280, w: 130, h: 170, hitboxX: 525, hitboxY: 280, hitboxW: 130, hitboxH: 15, interact: true, platform: true },
   crystalball: { name: "Crystal Ball", x: 550, y: 270, w: 80, h: 80, interact: true, platform: false },
   mirror:   { name: "Magic Mirror", x: 540, y: 125, w: 110, h: 105, interact: true, platform: false },
   door:     { name: "Door",    x: 645, y: 209, w: 165, h: 200, interact: true, platform: false },
@@ -6818,8 +6818,8 @@ function updateEscapeRoomPlayer() {
 function handleEscapeRoomInput() {
   if (gameState !== 'escapeRoom') return false;
   
-  // Interact (F key only)
-  if (key === 'F' || key === 'f') {
+  // Interact (E key only)
+  if (key === 'E' || key === 'e') {
     handleEscapeInteraction();
     return true;
   }
@@ -6882,7 +6882,21 @@ function handleEscapeInteraction() {
     if (escapeSfxCloth) escapeSfxCloth.play();
   }
   else if (name === "Door") {
-    if (escapeHasGem && !escapeDoorUnlocked) {
+    if (escapeDoorUnlocked) {
+      // Door is unlocked - player can exit
+      escapeRoomCompleted = true;
+      escapeMessage = "Escaping to the dreamscape...";
+      escapeMessageTimer = millis();
+      
+      // After 1 second, transition back to room1 in normal mode
+      setTimeout(() => {
+        gameState = 'exploring';
+        currentArea = 'room1';
+        previousArea = 'mansion';
+        initRoom1(); // Will now initialize as normal room
+        switchMusic();
+      }, 1000);
+    } else if (escapeHasGem && !escapeDoorUnlocked) {
       escapeInputBox.show();
       escapeSubmitButton.show();
       escapeMessage = "Enter the 4-digit code to escape.";
@@ -6922,7 +6936,7 @@ function drawEscapeInteraction() {
   fill(255);
   textAlign(CENTER, CENTER);
   textSize(14);
-  text("Press F to interact with " + target.name, width / 2, 40);
+  text("Press E to interact with " + target.name, width / 2, 40);
   pop();
 }
 
@@ -6950,18 +6964,8 @@ function checkEscapeCode() {
     escapeDoorUnlocked = true;
     escapeInputBox.hide();
     escapeSubmitButton.hide();
-    escapeRoomCompleted = true;
-    escapeMessage = "Door unlocked! You can now access the dreamscape.";
+    escapeMessage = "Door unlocked! Interact with the door to escape.";
     escapeMessageTimer = millis();
-    
-    // After 2 seconds, transition back to room1 in normal mode
-    setTimeout(() => {
-      gameState = 'exploring';
-      currentArea = 'room1';
-      previousArea = 'mansion';
-      initRoom1(); // Will now initialize as normal room
-      switchMusic();
-    }, 2000);
   } else {
     escapeMessage = "Wrong code!";
     escapeMessageTimer = millis();
