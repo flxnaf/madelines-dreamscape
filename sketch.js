@@ -4252,12 +4252,16 @@ function drawKeyIcon() {
 // DIALOGUE SYSTEM FUNCTIONS
 // =============================================================================
 
-function startDialogue(npc) {
+function startDialogue(npc, action = null) {
   gameState = 'dialogue';
   
   // Get dialogue from dialogues.js
+  // If action is provided, use it directly
+  if (action) {
+    currentDialogue = getDialogue(npc.name, action);
+  }
   // Special case: Dream Guardian intro greeting in mansion
-  if (npc.name === 'Dream Guardian' && currentArea === 'mansion' && !guardianIntroComplete) {
+  else if (npc.name === 'Dream Guardian' && currentArea === 'mansion' && !guardianIntroComplete) {
     currentDialogue = getDialogue(npc.name, 'introGreeting');
   }
   // Special case: Dream Guardian with 4 souls in mansion
