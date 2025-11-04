@@ -4193,11 +4193,15 @@ function drawSoulCounter() {
   let soulColor;
   
   if (currentSoul === 'Echo') {
-    soulColor = [100, 200, 255]; // Cyan/teal
+    soulColor = [255, 255, 255]; // White
   } else if (currentSoul === 'Sorrow') {
-    soulColor = [180, 120, 255]; // Purple/lavender
+    soulColor = [100, 150, 255]; // Blue
   } else if (currentSoul === 'King of Greed') {
     soulColor = [100, 255, 100]; // Green
+  } else if (currentSoul === 'Rath') {
+    soulColor = [255, 100, 100]; // Red
+  } else if (currentSoul === 'Dream Guardian') {
+    soulColor = [255, 255, 255]; // White
   } else {
     soulColor = [200, 200, 200]; // Default gray for unknown souls
   }
@@ -7083,8 +7087,28 @@ function drawEscapeUI() {
   if (escapeHint) {
     textAlign(CENTER, TOP);
     fill(255);
-    textSize(14);
-    text(escapeHint, width / 2, 10);
+    textSize(12);
+    
+    // Wrap text to prevent overflow
+    const maxWidth = width - 40; // Leave margin on both sides
+    const words = escapeHint.split(' ');
+    let line = '';
+    let y = 10;
+    const lineHeight = 16;
+    
+    for (let i = 0; i < words.length; i++) {
+      const testLine = line + words[i] + ' ';
+      const testWidth = textWidth(testLine);
+      
+      if (testWidth > maxWidth && i > 0) {
+        text(line, width / 2, y);
+        line = words[i] + ' ';
+        y += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+    text(line, width / 2, y);
   }
   pop();
 }
