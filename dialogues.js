@@ -244,6 +244,13 @@ const DIALOGUES = {
       text: 'Listen carefully... this melody holds a piece of me. Play it back to me, and I will give you my soul.',
       choices: [],
       triggersPiano: true
+    },
+    soulGiving: {
+      speaker: 'Rath',
+      text: 'You have mastered my melody... Few have ever done so. Take this - my soul, the essence of my wrath. May it guide you on your journey. Farewell, traveler... my time here is done.',
+      choices: [],
+      givesRathSoul: true,
+      turnsRathToStatue: true
     }
   }
 };

@@ -111,6 +111,7 @@ let greedKingGif; // King of Greed animated gif
 let greedKingStatueImg; // Static grayscale version for statue
 let guardianStatueImg; // Static grayscale version of Dream Guardian for statue
 let rathImg; // Rath animated gif
+let rathStatueImg; // Static grayscale version for statue
 let sansImg; // Sans sprite
 let ghostImg; // Ghost sprite for tower enemies
 let coinImg; // Coin sprite for tower collectibles
@@ -215,6 +216,7 @@ let essenceCollected = false;
 let echoIsStatue = false; // Track if Echo has been turned into a statue
 let wandererIsStatue = false; // Track if Sorrow has been turned into a statue
 let greedKingIsStatue = false;
+let rathIsStatue = false; // Track if Rath has been turned into a statue
 let guardianIsStatue = false; // Dream Guardian becomes statue after giving soul // Track if King of Greed has been turned into a statue
 let cageOpen = false; // Track if the cage borders have opened
 let currentPuzzleNPC = null; // Track which NPC's puzzle is active
@@ -481,6 +483,22 @@ function setup() {
       // Keep alpha the same (i+3)
     }
     sorrowStatueImg.updatePixels();
+  }
+  
+  // Create grayscale statue version of Rath
+  if (rathImg) {
+    rathStatueImg = createImage(rathImg.width, rathImg.height);
+    rathStatueImg.copy(rathImg, 0, 0, rathImg.width, rathImg.height, 0, 0, rathImg.width, rathImg.height);
+    rathStatueImg.filter(GRAY); // Convert to grayscale
+    rathStatueImg.loadPixels();
+    // Brighten the grayscale image to look more like stone
+    for (let i = 0; i < rathStatueImg.pixels.length; i += 4) {
+      rathStatueImg.pixels[i] *= 0.85;     // R - keep more brightness
+      rathStatueImg.pixels[i + 1] *= 0.85; // G
+      rathStatueImg.pixels[i + 2] *= 0.85; // B
+      // Keep alpha the same (i+3)
+    }
+    rathStatueImg.updatePixels();
   }
   
   // Initialize audio (but don't start music yet - wait for user interaction)
@@ -3193,6 +3211,7 @@ function isNPCStatue(npc) {
   return (npc.name === 'Echo' && echoIsStatue) || 
          (npc.name === 'Sorrow' && wandererIsStatue) ||
          (npc.name === 'King of Greed' && greedKingIsStatue) ||
+         (npc.name === 'Rath' && rathIsStatue) ||
          (npc.name === 'Dream Guardian' && guardianIsStatue);
 }
 
@@ -4595,6 +4614,20 @@ function handleDialogueChoice(choice) {
     if (currentDialogue.turnsGuardianToStatue) {
       guardianIsStatue = true;
       // Move player away from Guardian's position
+      player.x = width / 2 - 80;
+      player.y = height / 2 + 60;
+    }
+    
+    // Check if this response gives Rath's soul
+    if (currentDialogue.givesRathSoul) {
+      collectedSouls.push('Rath');
+      showTemporaryMessage('Soul of Wrath obtained!');
+    }
+    
+    // Check if this response turns Rath to statue
+    if (currentDialogue.turnsRathToStatue) {
+      rathIsStatue = true;
+      // Move player away from Rath's position
       player.x = width / 2 - 80;
       player.y = height / 2 + 60;
     }
@@ -6064,6 +6097,10 @@ class NPC {
         // Sorrow statue: static grayscale version
         imageMode(CENTER);
         image(sorrowStatueImg, this.x, this.y, this.w, this.h);
+      } else if (this.name === 'Rath' && rathStatueImg) {
+        // Rath statue: static grayscale version
+        imageMode(CENTER);
+        image(rathStatueImg, this.x, this.y, this.w, this.h);
       } else if (this.name === 'Dream Guardian' && guardianStatueImg) {
         // Dream Guardian statue: static grayscale version
         imageMode(CENTER);
@@ -6139,6 +6176,8 @@ class NPC {
         text('Sorrow (Statue)', this.x, this.y + this.h / 2 + 20);
       } else if (this.name === 'King of Greed') {
         text('King of Greed (Statue)', this.x, this.y + this.h / 2 + 20);
+      } else if (this.name === 'Rath') {
+        text('Rath (Statue)', this.x, this.y + this.h / 2 + 20);
       } else if (this.name === 'Dream Guardian') {
         text('Dream Guardian (Statue)', this.x, this.y + this.h / 2 + 20);
       }
@@ -6363,13 +6402,12 @@ function handlePianoInput() {
           pianoPlaybackTimer = 0;
         } else if (pianoInputSeq.length === pianoCorrectSeq.length) {
           // Success!
-          pianoMessage = "Perfect! Soul of Wrath obtained!";
+          pianoMessage = "Perfect! You've mastered the melody!";
           pianoMessageTimer = 180;
           pianoGamePhase = 'complete';
           
-          // Give soul after delay
+          // After delay, trigger dialogue with Rath
           setTimeout(() => {
-            collectedSouls.push('Rath');
             gameState = 'exploring';
             pianoGamePhase = 'listening';
             pianoPlaybackIndex = 0;
@@ -6377,7 +6415,15 @@ function handlePianoInput() {
             pianoInputSeq = [];
             // Resume background music
             switchMusic();
-          }, 3000);
+            
+            // Find Rath NPC and start dialogue
+            for (let npc of npcs) {
+              if (npc.name === 'Rath') {
+                startDialogue(npc, 'soulGiving');
+                break;
+              }
+            }
+          }, 2000);
         }
       }
     }
@@ -6415,6 +6461,7 @@ function resetGameState() {
   hasGreedSoul = false;
   wandererIsStatue = false;
   greedKingIsStatue = false;
+  rathIsStatue = false;
   guardianIsStatue = false;
   echoIsStatue = false;
   hasCabinKey = false;
