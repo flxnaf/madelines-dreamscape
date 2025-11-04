@@ -4441,6 +4441,16 @@ function drawDialogue() {
   
   // Draw dialogue box
   drawDialogueBox();
+  
+  // Draw soul counter if player has any souls
+  if (collectedSouls.length > 0) {
+    drawSoulCounter();
+  }
+  
+  // Draw key icon if player has cabin key
+  if (hasCabinKey) {
+    drawKeyIcon();
+  }
 }
 
 function drawDialogueBox() {
@@ -4536,11 +4546,30 @@ function advanceDialogue() {
   if (currentDialogue && currentDialogue.choices && currentDialogue.choices.length > 0) {
     handleDialogueChoice(currentDialogue.choices[dialogueBox.selectedChoice]);
   } else {
-    // No choices (response dialogue), check if swirl animation should trigger
-    if (currentDialogue && currentDialogue.triggersSwirl) {
-      startSwirlAnimation();
+    // No choices (response dialogue), check for special actions
+    if (currentDialogue) {
+      // Check if this dialogue gives Rath's soul
+      if (currentDialogue.givesRathSoul) {
+        collectedSouls.push('Rath');
+        showTemporaryMessage('Soul of Wrath obtained!');
+      }
+      
+      // Check if this dialogue turns Rath to statue
+      if (currentDialogue.turnsRathToStatue) {
+        rathIsStatue = true;
+        // Move player away from Rath's position
+        player.x = width / 2 - 80;
+        player.y = height / 2 + 60;
+      }
+      
+      // Check if swirl animation should trigger
+      if (currentDialogue.triggersSwirl) {
+        startSwirlAnimation();
+      } else {
+        // Normal exit to exploring
+        exitDialogue();
+      }
     } else {
-      // Normal exit to exploring
       exitDialogue();
     }
   }
